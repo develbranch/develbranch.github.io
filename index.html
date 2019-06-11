@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Maintenance mode</title>
+    
+    <script src="countdown/countDown.min.js"></script>
+    <link href="countdown/countdown.css" media="all" rel="stylesheet" />
+    <style>
+        body {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+	<div style="text-align:center;">
+    <h1><font size="7"> <b>Maintenance mode</b></font></h1>
+	<h3> We will be Back soon</h3>
+	</div>
+    <div class="container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+    <script>
+        let cd = new Countdown({
+    cont: document.querySelector('.container'),
+    countdown: true, // true for classic countdown, false for countup
+    date: {
+        day: 9,
+        month: 8,
+        year: 2222,
+        hour: 20,
+        minute: 5,
+        second: 0,
+    },
+    /*
+    date: "Wednesday March 25 2019",
+    // or
+    date: 1553468400000,
+    // or
+    date: new Date(1553468400000),
+    // or
+    date: null, == for now
+    // or
+    missing date key, == for now too
+     */
+    outputTranslation: {
+        year: 'Years',
+        week: 'Weeks',
+        day: 'Days',
+        hour: 'Hours',
+        minute: 'Minutes',
+        second: 'Seconds'
+    },
+    endCallback: function() {
+        // do something awesome
+    },
+    outputFormat: 'week|day|hour|minute|second',
+});
+
+        cd.start();
+    </script>
+
+</body>
+</html>
