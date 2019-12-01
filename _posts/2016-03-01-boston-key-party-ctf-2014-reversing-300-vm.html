@@ -1,0 +1,1073 @@
+---
+layout: post
+title: Boston Key Party CTF 2014 – Reversing 300 – VM
+date: 2016-03-01 12:02:30.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- CTF
+tags:
+- '2014'
+- bkp
+- Boston Key Party
+- CTF
+- Reversing
+- VM
+- writeup
+excerpt: 'Boston Key Party CTF 2014 – Reversing 300 – VM:  a simple vm engine introduction
+  and how to solve this challenge.'
+---
+<p>Bài này cũng khá lâu rồi, hôm trước có bạn muốn xem lại nên mình post lại vào đây.</p>
+<blockquote><p>this vm needs a license to run. We don’t have the license!</p>
+<p>http://bostonkeyparty.net/challenges/vm-2fbed3f5a894d56be6b2ba328f9e2411</p></blockquote>
+<p>The executable file is a simple vm engine.</p>
+<pre class="lang:sh decode:true">vm-2fbed3f5a894d56be6b2ba328f9e2411: ELF 64-bit LSB executable, x86-64, version1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, stripped</pre>
+<p>The program copies the encrypted vm code to local buffer in main() function and passes the pointer to this buffer to vm Engine.</p>
+<pre class="lang:asm decode:true">        push    rbp
+        mov     rbp, rsp
+        sub     rsp, 3B0h               ; 
+        lea     rsi, vm_code            ; vm_code_buffer
+        mov     rdx, 390h               ; vm_code_size
+        lea     rax, [rbp+dest]         ; 
+        mov     [rbp+var_4], 0
+        mov     [rbp+var_C], 0
+        mov     rdi, rax                ; 
+        call    _memcpy                 ; 
+ 
+        lea     rdi, [rbp+dest]         ; 
+        call    ExecuteVm               ; 
+ 
+        mov     [rbp+var_3A4], eax
+        cmp     [rbp+var_3A4], -1       ; Exit
+        jnz     loc_401671              ; 
+ 
+        lea     rdi, format             ; 'Error!',0Ah,0
+        mov     al, 0
+        call    _printf                 ; 
+ 
+        mov     [rbp+var_3A8], eax
+ 
+loc_401671:                             ; 
+        mov     eax, [rbp+var_4]
+        add     rsp, 3B0h               ; 
+        pop     rbp
+        retn                            ;</pre>
+<p>&nbsp;</p>
+<h2>vm engine</h2>
+<p>Vm engine is a stack based machine. At the beginning (0x00400D7F) of ExecuteVm() function, the program initializes vm stack pointer(stack_pointer), vm instruction pointer(vm_ip), flag and key to decrypt.</p>
+<pre class="lang:asm decode:true ">mov     [rbp+stack_pointer], -1
+mov     [rbp+vm_ip], 0
+mov     [rbp+var_23], 0
+mov     rdi, ds:qword_401890
+mov     [rbp+key], rdi
+mov     rdi, ds:qword_401898
+mov     [rbp+var_148], rdi
+mov     al, ds:byte_4018A0
+mov     [rbp+var_140], al
+mov     ecx, ds:g_VM_flag
+and     ecx, not 1              ;
+mov     ds:g_VM_flag, ecx
+mov     ecx, ds:g_VM_flag
+and     ecx, not 2              ;
+mov     ds:g_VM_flag, ecx</pre>
+<p><strong>fetch() function</strong> (0x400AD0) is used to read one byte from vm_buffer and decode it. Decoded value is used to identify instruction.</p>
+<pre class="lang:asm decode:true ">fetch   proc near                       ;
+instruction_value= byte ptr -0Dh
+vm_ip   = dword ptr -0Ch
+ins_buffer= qword ptr -8
+
+        mov     [rsp+ins_buffer], rdi
+        mov     [rsp+vm_ip], esi
+        mov     [rsp+instruction_value], 0
+        cmp     [rsp+vm_ip], 0          ; Compare Two Operands
+        jle     loc_400B06              ; Jump if Less or Equal (ZF=1 | SF!=OF)
+
+        mov     eax, [rsp+vm_ip]
+        sub     eax, 1                  ; Integer Subtraction
+        movsxd  rcx, eax                ; Move with Sign-Extend Doubleword
+        mov     rdx, [rsp+ins_buffer]
+        mov     sil, [rdx+rcx]
+        mov     [rsp+instruction_value], sil
+
+loc_400B06:                             
+        mov     rax, [rsp+ins_buffer]
+        movsxd  rcx, [rsp+vm_ip]        ; Move with Sign-Extend Doubleword
+        mov     dl, [rax+rcx]
+        mov     sil, [rsp+instruction_value]
+        imul    rax, rcx, 2E8BA2E9h     ; Signed Multiply
+        mov     rdi, rax
+        shr     rdi, 3Fh ; '?'          ; Shift Logical Right
+        mov     r8d, edi
+        sar     rax, 21h ; '!'          ; Shift Arithmetic Right
+        mov     r9d, eax
+        add     r9d, r8d                ; = ecx / 11
+        imul    r8d, r9d, 11            ; Signed Multiply
+        mov     r9d, ecx
+        sub     r9d, r8d                ; = ecx % 11
+        xor     dl, sil                 ; 
+        movsx   r8d, dl                 ; 
+        xor     r8d, r9d                ; 
+        mov     dl, r8b
+        mov     [rsp+instruction_value], dl
+        movsx   eax, [rsp+instruction_value] ; 
+        retn                            ; 
+
+fetch   endp</pre>
+<p>This function has 2 parameters :</p>
+<pre class="lang:c decode:true ">int fetch(char *vm_ins_buffer, int vm_ip);
+{
+if (vm_ip == 0)
+    return vm_ins_buffer[vm_ip];
+else
+    return vm_ins_buffer[vm_ip] ^ vm_ins_buffer[vm_ip-1] ^ (vm_ip % 11);
+}</pre>
+<h3>Encryption</h3>
+<p>Notice that this vm engine has an instruction to decrypt vm code by itself (opcode=0x44), (address = 0x0400E96)</p>
+<pre class="lang:asm decode:true ">          jmp     $+5                     ; Jump
+          mov     eax, [rbp+var_158]
+          sub     eax, 44h ; 'D'          ; Integer Subtraction
+          mov     [rbp+var_174], eax
+          jz      DecryptCode             ; Jump if Zero (ZF=1)
+
+          jmp     Invalid                 ; Jump
+
+ DecryptCode:                            ; 
+          lea     rdi, [rbp+key]          ; key
+          mov     eax, [rbp+vm_ip]
+          add     eax, 1                  ; Add
+          mov     [rbp+vm_ip], eax
+          mov     rsi, [rbp+vm_ins_buffer]
+          mov     edx, [rbp+vm_ip]
+          call    DecryptMainVmCode       ; Get size and decrypt buffer
+
+          mov     eax, [rbp+vm_ip]
+          add     eax, 3                  ; Add
+          mov     [rbp+vm_ip], eax
+          jmp     end_instruction         ; Jump</pre>
+<p>Following this instruction, I look at the main decrypt stub:</p>
+<ul>
+<li>Algorithm is aes_128_ofb.</li>
+<li>Read 4 bytes which follow opcode. These bytes are the size of encrypted code.</li>
+<li>The default key to decrypt is {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F}. This key is changed after reading each character in license.drm.</li>
+<li>The initialization vector is {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F}</li>
+<li>Patch vm code after decrypting.</li>
+<li>The length of this instruction is 5 bytes.</li>
+</ul>
+<h3>Read license file</h3>
+<p>getc() instruction (0x000401046)</p>
+<pre class="lang:asm decode:true ">VM_GetChar proc near                    ; 
+         mov     rdi, [rbp-18h]          ; 
+         call    _fgetc                  ; 
+
+         mov     cl, al
+         mov     [rbp-21h], cl
+         movsx   eax, byte ptr [rbp-21h] ;
+         cmp     eax, 0FFFFFFFFh         ;
+         jnz     loc_40106F              ;
+
+         mov     dword ptr [rbp-4], 1
+         jmp     loc_4015ED              ; Jump
+
+ ; ---------------------------------------------------------------------------
+
+ loc_40106F:                             ;
+         mov     al, [rbp-21h]
+         movsx   rcx, byte ptr [rbp-23h] ; 
+         mov     [rbp+rcx-150h], al      ; move the new byte to the ending of key buffer
+         mov     al, [rbp-23h]
+         add     al, 1                   ; Add
+         mov     [rbp-23h], al
+         mov     edx, [rbp-1Ch]
+         add     edx, 1                  ; Add
+         mov     [rbp-1Ch], edx
+         mov     al, [rbp-21h]
+         movsxd  rcx, dword ptr [rbp-1Ch] ; 
+         mov     [rbp+rcx-130h], al      ; put the read byte on the top of stack
+         jmp     end_instruction         ; 
+
+ VM_GetChar endp
+</pre>
+<p>This function reads one byte from license file, appends to key buffer and pushes it into stack.</p>
+<p>Because code is encrypted by input characters, you must find the right characters before continuing to disassemble.</p>
+<p>VM instruction table (address = 0x0401710)</p>
+<pre class="lang:asm decode:true ">.rodata:0000000000401710 vm_ins  dq offset VM_Nop                ; 
+.rodata:0000000000401718         dq offset VM_OpenFile
+.rodata:0000000000401720         dq offset VM_push
+.rodata:0000000000401728         dq offset VM_pop
+.rodata:0000000000401730         dq offset VM_Reset
+.rodata:0000000000401738         dq offset Invalid
+.rodata:0000000000401740         dq offset Invalid
+.rodata:0000000000401748         dq offset Invalid
+.rodata:0000000000401750         dq offset Invalid
+.rodata:0000000000401758         dq offset Invalid
+.rodata:0000000000401760         dq offset Invalid
+.rodata:0000000000401768         dq offset Invalid
+.rodata:0000000000401770         dq offset Invalid
+.rodata:0000000000401778         dq offset Invalid
+.rodata:0000000000401780         dq offset Invalid
+.rodata:0000000000401788         dq offset Invalid
+.rodata:0000000000401790         dq offset Invalid
+.rodata:0000000000401798         dq offset VM_Exit
+.rodata:00000000004017A0         dq offset Invalid
+.rodata:00000000004017A8         dq offset VM_swap_nibbles_and_xchg
+.rodata:00000000004017B0         dq offset Invalid
+.rodata:00000000004017B8         dq offset Invalid
+.rodata:00000000004017C0         dq offset Invalid
+.rodata:00000000004017C8         dq offset Invalid
+.rodata:00000000004017D0         dq offset Invalid
+.rodata:00000000004017D8         dq offset VM_GetChar
+.rodata:00000000004017E0         dq offset Invalid
+.rodata:00000000004017E8         dq offset VM_not
+.rodata:00000000004017F0         dq offset VM_jmp
+.rodata:00000000004017F8         dq offset VM_je
+.rodata:0000000000401800         dq offset VM_jne
+.rodata:0000000000401808         dq offset Invalid
+.rodata:0000000000401810         dq offset VM_zero
+.rodata:0000000000401818         dq offset Invalid
+.rodata:0000000000401820         dq offset VM_putchar
+.rodata:0000000000401828         dq offset VM_swap_nibbles
+.rodata:0000000000401830         dq offset VM_obfucate
+.rodata:0000000000401838         dq offset VM_xchg
+.rodata:0000000000401840         dq offset VM_xor_curr_pos_with_2_pow_byte
+.rodata:0000000000401848         dq offset Invalid
+.rodata:0000000000401850         dq offset Invalid
+.rodata:0000000000401858         dq offset Invalid
+.rodata:0000000000401860         dq offset VM_xor</pre>
+<pre class="lang:c decode:true ">unsigned char VM_obfucate( unsigned char c)
+{
+    char a = 0;
+    a |= ((((c &amp;0xFF)&amp; 1) &lt;&lt; 7) &amp; 0xFF); a |= ((((c &amp;0xFF) &amp; 0x10) &gt;&gt; 1) &amp; 0xFF);
+    a |= ((((c &amp;0xFF) &amp; 0x8) &lt;&lt; 1)&amp;0xFF); a |= ((((c &amp;0xFF) &amp; 0x40) &gt;&gt; 5) &amp; 0xFF);
+    a |= ((((c &amp;0xFF) &amp; 4) &lt;&lt; 3)&amp;0xFF); a |= ((((c &amp;0xFF) &amp; 0x80) &gt;&gt; 7)&amp;0xFF);
+    a |= ((((c &amp;0xFF) &amp; 0x2) &lt;&lt; 5) &amp; 0xFF); a |= ((((c &amp;0xFF) &amp; 0x20) &gt;&gt; 3) &amp; 0xFF);
+
+    return a;
+}
+</pre>
+<h3>Disassembler</h3>
+<pre class="lang:python decode:true ">#-------------------------------------------------------------------------------
+# Name:        RE300: VM disassembler
+# Purpose:     Boston Key Party CTF 2014 writeup
+#
+# Author:      Peter from piggybird.net
+# Created:     01/03/2014
+# Copyright:   (c) PiggyBird CTF Team 2014
+#-------------------------------------------------------------------------------
+
+import struct
+
+def VM_Nop(vm_buf, ip):
+    print "nop"
+    return 1
+
+def VM_OpenFile(vm_buf, ip):
+    print "open_file"
+    return 1
+
+def VM_push(vm_buf, ip):
+    print "push ", "0x"+vm_buf[ip+1].encode('hex')
+    return 2
+
+def VM_pop(vm_buf, ip):
+    print "pop"
+    return 1
+
+def VM_Reset(vm_buf, ip):
+    print "reset"
+    return 1
+
+def VM_Invalid(vm_buf, ip):
+    print "Error!"
+    return 1
+
+def VM_Exit(vm_buf, ip):
+    print "Exit"
+    return 1
+
+def VM_swap_nibbles_and_xchg(vm_buf, ip):
+    print "swap_nibbles_and_xchg [top], [top-0x" +vm_buf[ip+1].encode('hex')+ "]"
+    return 2
+
+def VM_GetChar(vm_buf, ip):
+    print "getc()"
+    return 1
+
+def VM_not(vm_buf, ip):
+    print "not"
+    return 1
+
+def VM_jmp(vm_buf, ip):
+    print "jmp ", hex(ip + 2 + ord(vm_buf[ip+1]))
+    return 2
+
+def VM_je(vm_buf, ip):
+    print "je  ", hex(ip + 2 + ord(vm_buf[ip+1]))
+    return 2
+
+def VM_jne(vm_buf, ip):
+    print "jne ", hex(ip + 2 + ord(vm_buf[ip+1]))
+    return 2
+
+def VM_zero(vm_buf, ip):
+    print "push  0x00"
+    return 1
+
+def VM_putchar(vm_buf, ip):
+    print "putchar()"
+    return 1
+
+def VM_swap_nibbles(vm_buf, ip):
+    print "swap nibbles"
+    return 1
+
+def VM_obfucate(vm_buf, ip):
+    print "obfucate"
+    return 1
+
+def VM_xchg(vm_buf, ip):
+    print "xchg [top], [top - 0x"+vm_buf[ip+1].encode('hex')+"]"
+    return 2
+
+def VM_xor_curr_pos_with_2_pow_byte(vm_buf, ip):
+    print "xor ", "pow(2, 0x"+vm_buf[ip+1].encode('hex')+")"
+    return 2
+
+def VM_xor(vm_buf, ip):
+    print "xor ", "0x"+vm_buf[ip+1].encode('hex')
+    return 2
+
+def VM_add(vm_buf, ip):
+    print "add ", "0x"+vm_buf[ip+1].encode('hex')
+    return 2
+
+def VM_sub(vm_buf, ip):
+    print "sub ", "0x"+vm_buf[ip+1].encode('hex')
+    return 2
+
+def VM_cmp(vm_buf, ip):
+    print "cmp ", "0x"+vm_buf[ip+1].encode('hex')
+    return 2
+
+def VM_decrypt(vm_buf, ip):
+    buf_size = struct.unpack("&lt;I", vm_buf[ip+1:ip+5])[0]
+    print "decrypt: address="+ hex(ip+5) + ", size=" + hex(buf_size)
+    return 5
+
+opcodes = {0 : VM_Nop,
+           1 : VM_OpenFile,
+           2 : VM_push,
+           3 : VM_pop,
+           4 : VM_Reset,
+           5 : VM_Invalid,
+           6 : VM_Invalid,
+           7 : VM_Invalid,
+           8 : VM_Invalid,
+           9 : VM_Invalid,
+           10 : VM_Invalid,
+           11 : VM_Invalid,
+           12 : VM_Invalid,
+           13 : VM_Invalid,
+           14 : VM_Invalid,
+           15 : VM_Invalid,
+           16 : VM_Invalid,
+           17 : VM_Exit,
+           18 : VM_Invalid,
+           19 : VM_swap_nibbles_and_xchg,
+           20 : VM_Invalid,
+           21 : VM_Invalid,
+           22 : VM_Invalid,
+           23 : VM_Invalid,
+           24 : VM_Invalid,
+           25 : VM_GetChar,
+           26 : VM_Invalid,
+           27 : VM_not,
+           28 : VM_jmp,
+           29 : VM_je,
+           30 : VM_jne,
+           31 : VM_Invalid,
+           32 : VM_zero,
+           33 : VM_Invalid,
+           34 : VM_putchar,
+           35 : VM_swap_nibbles,
+           36 : VM_obfucate,
+           37 : VM_xchg,
+           38 : VM_xor_curr_pos_with_2_pow_byte,
+           39 : VM_Invalid,
+           40 : VM_Invalid,
+           41 : VM_Invalid,
+           42 : VM_xor,
+}
+
+def disassembler(vm_buf):
+    ''' disassembler '''
+    print "vm code size = "+hex(len(vm_buf))+" bytes."
+    print "Addr \tCommand"
+    print "-----\t-------"
+
+    #i = 0x1F  # get bytes and check
+    i = 0x0
+    while 1:
+        if i &gt; len(vm_buf) - 1:
+            break
+        print hex(i), "\t", # address
+        op = ord(vm_buf[i])
+
+        if op == 0x44:
+            i += VM_decrypt(vm_buf, i)
+            continue
+
+        if op == 0x2b:
+
+            i += VM_add(vm_buf, i)
+            continue
+
+        if op == 0x2d:
+            i += VM_sub(vm_buf, i)
+            continue
+
+        if op == 0x3d:
+            i += VM_cmp(vm_buf, i)
+            continue
+
+        else:
+            if (op &lt; 0x4E) or ((op - 0x4e) &gt; len(opcodes)):
+                print "Oops! Invalid Opcode, value="+vm_buf[i].encode('hex')
+                i += 1
+                continue
+
+            i += opcodes[op - 0x4e](vm_buf, i)
+            continue
+
+def main():
+    encoded='503D6F05513761035B3C66154423705A0F6D3A40197E10414F03433732353D53218BED972F4C31FB8F86E89A4735340AFB929FA53154566B2D43447D791400585B012071164531640D5A1C651F6F1E6C1F44111D4A7D245A0A62301347366040187F255607643744113760441D6E3E4C1E7C28481E39611B4120710457732654036A3351015406257155036139441E7B2A441763365D0A6D345D0D2C7E4C183D6B09513F6504552370275224532B522858295B285C295F2850295323522053275224532B522858295B285C295F28502953235220532766D1D4DCD5B8D1A844204D30EB8BEA9B5D3A522881F6F08580FBF3C491FCF5CB036A645EA0C5CBF6F09989DDD284A2FA96CCBCED80D399EC9AED95EC96C99890C3E6B3D285E3BAD989FEACC094FCAA8DD5ACF693C2A5F6B9ECCA9DB4ED82D2A7F593C7AEF88FD7B3E986D7B6E5C194A0F7DF86E9B9DF8DEFBBCA9CC8B0C9B3C3B2C0B3C7B2C4B3CBB2C8B8C9BBC8BCC9BFC8B0C9B3C3B2C0B3C7B2F0E6ECE5EF88FB90EB11730DEB91EBE087FE2253304DE693F28880F3F383F3F5CD5A313206513D340B6901003BDAB9A3F9F3A281D2B3E690C7A0F9BDCDBCCEBDC9BCE5B2B0E9C292F6A4D581E1B7D880FDA787D6ADFE96C3B7E089D0BFEF80D2F1A5C593E6BED68CACFD8AD9B2E7B8EFC79EB5E581D3A4F090C6ADF58CD6BBEA87D4B3E6C097ACF5DF8FEBB9DD89EDBBC890CAB0C0B1C3B0C4B1C7B0C8B1CBBBCAB8CBBFCABCCBB3CAB0C0B1C3B0C4B1C7B0C8B1CBBBCAB8CBBFCA88DED7DED4B3CA16616011147404A0DBB2D4A4D3D5A4A3DC6A046F6D14F993E4E29792E9E1D66E030A348BE2ECD6187D734EB9D0C0949BCDEBB3DF85F5A4C99AD0A5D3A4DCA5DF80D1D98A84D1F9AED28BE8B899CBACF898CEA2FA9AC0ACFDDF8CFDA8C196E7BE94C4A0F281D5BFE9A6FED78DACFD9AC9B9EC8FD8BCE59FCFA3F19DC9AFF9DE86BBE1C190F7A4C792F5A2DE87DEAEDFADDEAADFA9DEA6DFA5D5A4D6A5D1A4D2A5DDA4DEAEDFADDEAADFA9DEA6DFA5D5A4D6A5D190070008015B510025763C691A4D035A0F5F2D7F35613B6D2D75124801502172247112451B422D7D2E7C20741C4A1B436D3717467E2D50056631520B21710A583A6E0355722A4D177627461531641740277E0D5D7C2E5A0E64327B037A00700173007401770078017B0B7A087B0F7A0C7B037A00700173007401770078017B0B7A087B0F7A0C542755245F255C245B25582457255468552C542B5501542755241E255C245BF5582457'
+
+    # decode VM code from memory
+    encoded = encoded.decode('hex')
+    decoded=''
+
+    i = 0
+    for c in encoded :
+        if i == 0:
+            decoded += c
+        else:
+            decoded += chr(ord(encoded[i - 1]) ^ ord(c) ^((i % 11) &amp; 0xFF))
+
+        i  = i + 1
+
+    disassembler(decoded)
+    pass
+
+if __name__ == '__main__':
+    main()
+</pre>
+<h3>Result</h3>
+<pre class="lang:sh decode:true ">vm code size = 0x38f bytes.
+Addr Command
+----- -------
+0x0 push 0x6c
+0x2 push 0x69
+0x4 push 0x63
+0x6 push 0x65
+0x8 push 0x6e
+0xa push 0x73
+0xc push 0x65
+0xe push 0x2e
+0x10 push 0x64
+0x12 push 0x72
+0x14 push 0x6d
+0x16 push 0x00
+0x17 push 0x0c
+0x19 open_file
+0x1a decrypt: address=0x1f, size=0x371
+0x1f getc()
+0x20 xor 0xaa
+0x22 getc()
+0x23 xor 0xbb
+0x25 getc()
+0x26 xor 0xcc
+0x28 xchg [top], [top - 0x01]
+0x2a getc()
+0x2b xor 0xdd
+0x2d xchg [top], [top - 0x03]
+0x2f cmp 0xf5
+0x31 jne 0x3e
+0x33 cmp 0x9c
+0x35 jne 0x3f
+0x37 cmp 0x47
+0x39 jne 0x3f
+0x3b cmp 0x01
+0x3d je 0x52
+0x3f push 0x0a
+0x41 push 0x21
+0x43 push 0x65
+0x45 push 0x70
+0x47 push 0x6f
+0x49 push 0x4e
+0x4b putchar()
+0x4c putchar()
+0x4d putchar()
+0x4e putchar()
+0x4f putchar()
+0x50 putchar()
+0x51 Exit
+0x52 push 0x0a
+0x54 push 0x3f
+0x56 push 0x74
+0x58 push 0x69
+0x5a push 0x20
+0x5c push 0x74
+0x5e push 0x27
+0x60 push 0x6e
+0x62 push 0x73
+0x64 push 0x61
+0x66 push 0x77
+0x68 push 0x20
+0x6a push 0x2c
+0x6c push 0x79
+0x6e push 0x73
+0x70 push 0x61
+0x72 push 0x65
+0x74 push 0x20
+0x76 push 0x73
+0x78 push 0x61
+0x7a push 0x77
+0x7c push 0x20
+0x7e push 0x74
+0x80 push 0x61
+0x82 push 0x68
+0x84 push 0x54
+0x86 push 0x20
+0x88 push 0x21
+0x8a push 0x65
+0x8c push 0x74
+0x8e push 0x65
+0x90 push 0x6c
+0x92 push 0x70
+0x94 push 0x6d
+0x96 push 0x6f
+0x98 push 0x63
+0x9a push 0x20
+0x9c push 0x31
+0x9e push 0x20
+0xa0 push 0x65
+0xa2 push 0x67
+0xa4 push 0x61
+0xa6 push 0x74
+0xa8 push 0x53
+0xaa putchar()
+0xab putchar()
+0xac putchar()
+0xad putchar()
+0xae putchar()
+0xaf putchar()
+0xb0 putchar()
+0xb1 putchar()
+0xb2 putchar()
+0xb3 putchar()
+0xb4 putchar()
+0xb5 putchar()
+0xb6 putchar()
+0xb7 putchar()
+0xb8 putchar()
+0xb9 putchar()
+0xba putchar()
+0xbb putchar()
+0xbc putchar()
+0xbd putchar()
+0xbe putchar()
+0xbf putchar()
+0xc0 putchar()
+0xc1 putchar()
+0xc2 putchar()
+0xc3 putchar()
+0xc4 putchar()
+0xc5 putchar()
+0xc6 putchar()
+0xc7 putchar()
+0xc8 putchar()
+0xc9 putchar()
+0xca putchar()
+0xcb putchar()
+0xcc putchar()
+0xcd putchar()
+0xce putchar()
+0xcf putchar()
+0xd0 putchar()
+0xd1 putchar()
+0xd2 putchar()
+0xd3 putchar()
+0xd4 putchar()
+0xd5 putchar()
+0xd6 decrypt: address=0xdb, size=0x2b1
+0xdb getc()
+0xdc not
+0xdd xor 0xee
+0xdf getc()
+0xe0 not
+0xe1 xor 0xdd
+0xe3 getc()
+0xe4 not
+0xe5 xor 0xcc
+0xe7 getc()
+0xe8 not
+0xe9 xor 0xaa
+0xeb xchg [top], [top - 0x03]
+0xed xchg [top], [top - 0x02]
+0xef xchg [top], [top - 0x01]
+0xf1 cmp 0x55
+0xf3 jne 0x100
+0xf5 cmp 0xcc
+0xf7 jne 0x101
+0xf9 cmp 0xf6
+0xfb jne 0x101
+0xfd cmp 0x07
+0xff je 0x114
+0x101 push 0x0a
+0x103 push 0x21
+0x105 push 0x65
+0x107 push 0x70
+0x109 push 0x6f
+0x10b push 0x4e
+0x10d putchar()
+0x10e putchar()
+0x10f putchar()
+0x110 putchar()
+0x111 putchar()
+0x112 putchar()
+0x113 Exit
+0x114 push 0x0a
+0x116 push 0x21
+0x118 push 0x67
+0x11a push 0x6e
+0x11c push 0x69
+0x11e push 0x76
+0x120 push 0x6f
+0x122 push 0x6d
+0x124 push 0x20
+0x126 push 0x70
+0x128 push 0x65
+0x12a push 0x65
+0x12c push 0x4b
+0x12e push 0x20
+0x130 push 0x21
+0x132 push 0x65
+0x134 push 0x74
+0x136 push 0x65
+0x138 push 0x6c
+0x13a push 0x70
+0x13c push 0x6d
+0x13e push 0x6f
+0x140 push 0x63
+0x142 push 0x20
+0x144 push 0x32
+0x146 push 0x20
+0x148 push 0x65
+0x14a push 0x67
+0x14c push 0x61
+0x14e push 0x74
+0x150 push 0x53
+0x152 putchar()
+0x153 putchar()
+0x154 putchar()
+0x155 putchar()
+0x156 putchar()
+0x157 putchar()
+0x158 putchar()
+0x159 putchar()
+0x15a putchar()
+0x15b putchar()
+0x15c putchar()
+0x15d putchar()
+0x15e putchar()
+0x15f putchar()
+0x160 putchar()
+0x161 putchar()
+0x162 putchar()
+0x163 putchar()
+0x164 putchar()
+0x165 putchar()
+0x166 putchar()
+0x167 putchar()
+0x168 putchar()
+0x169 putchar()
+0x16a putchar()
+0x16b putchar()
+0x16c putchar()
+0x16d putchar()
+0x16e putchar()
+0x16f putchar()
+0x170 putchar()
+0x171 decrypt: address=0x176, size=0x211
+0x176 getc()
+0x177 obfucate
+0x178 not
+0x179 xor 0xfe
+0x17b getc()
+0x17c xor 0xe1
+0x17e obfucate
+0x17f xchg [top], [top - 0x01]
+0x181 getc()
+0x182 xor 0xde
+0x184 obfucate
+0x185 getc()
+0x186 xor 0xad
+0x188 obfucate
+0x189 not
+0x18a xchg [top], [top - 0x02]
+0x18c xchg [top], [top - 0x01]
+0x18e obfucate
+0x18f xchg [top], [top - 0x02]
+0x191 cmp 0x91
+0x193 jne 0x1a0
+0x195 cmp 0x5d
+0x197 jne 0x1a1
+0x199 cmp 0x61
+0x19b jne 0x1a1
+0x19d cmp 0xe6
+0x19f je 0x1b4
+0x1a1 push 0x0a
+0x1a3 push 0x21
+0x1a5 push 0x65
+0x1a7 push 0x70
+0x1a9 push 0x6f
+0x1ab push 0x4e
+0x1ad putchar()
+0x1ae putchar()
+0x1af putchar()
+0x1b0 putchar()
+0x1b1 putchar()
+0x1b2 putchar()
+0x1b3 Exit
+0x1b4 push 0x0a
+0x1b6 push 0x21
+0x1b8 push 0x65
+0x1ba push 0x72
+0x1bc push 0x65
+0x1be push 0x68
+0x1c0 push 0x74
+0x1c2 push 0x20
+0x1c4 push 0x79
+0x1c6 push 0x6c
+0x1c8 push 0x72
+0x1ca push 0x61
+0x1cc push 0x65
+0x1ce push 0x6e
+0x1d0 push 0x20
+0x1d2 push 0x65
+0x1d4 push 0x72
+0x1d6 push 0x61
+0x1d8 push 0x20
+0x1da push 0x75
+0x1dc push 0x6f
+0x1de push 0x59
+0x1e0 push 0x20
+0x1e2 push 0x21
+0x1e4 push 0x65
+0x1e6 push 0x74
+0x1e8 push 0x65
+0x1ea push 0x6c
+0x1ec push 0x70
+0x1ee push 0x6d
+0x1f0 push 0x6f
+0x1f2 push 0x63
+0x1f4 push 0x20
+0x1f6 push 0x33
+0x1f8 push 0x20
+0x1fa push 0x65
+0x1fc push 0x67
+0x1fe push 0x61
+0x200 push 0x74
+0x202 push 0x53
+0x204 putchar()
+0x205 putchar()
+0x206 putchar()
+0x207 putchar()
+0x208 putchar()
+0x209 putchar()
+0x20a putchar()
+0x20b putchar()
+0x20c putchar()
+0x20d putchar()
+0x20e putchar()
+0x20f putchar()
+0x210 putchar()
+0x211 putchar()
+0x212 putchar()
+0x213 putchar()
+0x214 putchar()
+0x215 putchar()
+0x216 putchar()
+0x217 putchar()
+0x218 putchar()
+0x219 putchar()
+0x21a putchar()
+0x21b putchar()
+0x21c putchar()
+0x21d putchar()
+0x21e putchar()
+0x21f putchar()
+0x220 putchar()
+0x221 putchar()
+0x222 putchar()
+0x223 putchar()
+0x224 putchar()
+0x225 putchar()
+0x226 putchar()
+0x227 putchar()
+0x228 putchar()
+0x229 putchar()
+0x22a putchar()
+0x22b putchar()
+0x22c decrypt: address=0x231, size=0x151
+0x231 getc()
+0x232 xor 0xde
+0x234 xor pow(2, 0x05)
+0x236 xor pow(2, 0x03)
+0x238 getc()
+0x239 xor 0xad
+0x23b swap nibbles
+0x23c not
+0x23d getc()
+0x23e obfucate
+0x23f xor pow(2, 0x02)
+0x241 xor pow(2, 0x01)
+0x243 xor 0xbe
+0x245 getc()
+0x246 swap_nibbles_and_xchg [top], [top-0x02]
+0x248 xor 0xef
+0x24a not
+0x24b xchg [top], [top - 0x03]
+0x24d xchg [top], [top - 0x02]
+0x24f xchg [top], [top - 0x01]
+0x251 cmp 0xb8
+0x253 jne 0x260
+0x255 cmp 0xbb
+0x257 jne 0x261
+0x259 cmp 0xc6
+0x25b jne 0x261
+0x25d cmp 0xf6
+0x25f je 0x274
+0x261 push 0x0a
+0x263 push 0x21
+0x265 push 0x65
+0x267 push 0x70
+0x269 push 0x6f
+0x26b push 0x4e
+0x26d putchar()
+0x26e putchar()
+0x26f putchar()
+0x270 putchar()
+0x271 putchar()
+0x272 putchar()
+0x273 Exit
+0x274 push 0x0a
+0x276 push 0x0a
+0x278 push 0x2e
+0x27a push 0x74
+0x27c push 0x69
+0x27e push 0x20
+0x280 push 0x64
+0x282 push 0x65
+0x284 push 0x6b
+0x286 push 0x69
+0x288 push 0x6c
+0x28a push 0x20
+0x28c push 0x75
+0x28e push 0x6f
+0x290 push 0x79
+0x292 push 0x20
+0x294 push 0x65
+0x296 push 0x70
+0x298 push 0x6f
+0x29a push 0x48
+0x29c push 0x20
+0x29e push 0x21
+0x2a0 push 0x65
+0x2a2 push 0x74
+0x2a4 push 0x65
+0x2a6 push 0x6c
+0x2a8 push 0x70
+0x2aa push 0x6d
+0x2ac push 0x6f
+0x2ae push 0x63
+0x2b0 push 0x20
+0x2b2 push 0x34
+0x2b4 push 0x20
+0x2b6 push 0x65
+0x2b8 push 0x67
+0x2ba push 0x61
+0x2bc push 0x74
+0x2be push 0x53
+0x2c0 putchar()
+0x2c1 putchar()
+0x2c2 putchar()
+0x2c3 putchar()
+0x2c4 putchar()
+0x2c5 putchar()
+0x2c6 putchar()
+0x2c7 putchar()
+0x2c8 putchar()
+0x2c9 putchar()
+0x2ca putchar()
+0x2cb putchar()
+0x2cc putchar()
+0x2cd putchar()
+0x2ce putchar()
+0x2cf putchar()
+0x2d0 putchar()
+0x2d1 putchar()
+0x2d2 putchar()
+0x2d3 putchar()
+0x2d4 putchar()
+0x2d5 putchar()
+0x2d6 putchar()
+0x2d7 putchar()
+0x2d8 putchar()
+0x2d9 putchar()
+0x2da putchar()
+0x2db putchar()
+0x2dc putchar()
+0x2dd putchar()
+0x2de putchar()
+0x2df putchar()
+0x2e0 putchar()
+0x2e1 putchar()
+0x2e2 putchar()
+0x2e3 putchar()
+0x2e4 putchar()
+0x2e5 putchar()
+0x2e6 decrypt: address=0x2eb, size=0x91
+0x2eb push 0x0a
+0x2ed push 0x27
+0x2ef push 0x4e
+0x2f1 push 0x75
+0x2f3 push 0x46
+0x2f5 push 0x5f
+0x2f7 push 0x73
+0x2f9 push 0x49
+0x2fb push 0x5f
+0x2fd push 0x47
+0x2ff push 0x6e
+0x301 push 0x49
+0x303 push 0x73
+0x305 push 0x52
+0x307 push 0x65
+0x309 push 0x56
+0x30b push 0x65
+0x30d push 0x52
+0x30f push 0x5f
+0x311 push 0x6d
+0x313 push 0x56
+0x315 push 0x27
+0x317 push 0x20
+0x319 push 0x3a
+0x31b push 0x79
+0x31d push 0x65
+0x31f push 0x6b
+0x321 push 0x20
+0x323 push 0x7a
+0x325 push 0x61
+0x327 push 0x68
+0x329 push 0x20
+0x32b push 0x6e
+0x32d push 0x61
+0x32f push 0x63
+0x331 push 0x20
+0x333 push 0x75
+0x335 push 0x6f
+0x337 push 0x79
+0x339 push 0x20
+0x33b push 0x77
+0x33d push 0x6f
+0x33f push 0x4e
+0x341 putchar()
+0x342 putchar()
+0x343 putchar()
+0x344 putchar()
+0x345 putchar()
+0x346 putchar()
+0x347 putchar()
+0x348 putchar()
+0x349 putchar()
+0x34a putchar()
+0x34b putchar()
+0x34c putchar()
+0x34d putchar()
+0x34e putchar()
+0x34f putchar()
+0x350 putchar()
+0x351 putchar()
+0x352 putchar()
+0x353 putchar()
+0x354 putchar()
+0x355 putchar()
+0x356 putchar()
+0x357 putchar()
+0x358 putchar()
+0x359 putchar()
+0x35a putchar()
+0x35b putchar()
+0x35c putchar()
+0x35d putchar()
+0x35e putchar()
+0x35f putchar()
+0x360 putchar()
+0x361 putchar()
+0x362 putchar()
+0x363 putchar()
+0x364 putchar()
+0x365 putchar()
+0x366 putchar()
+0x367 putchar()
+0x368 putchar()
+0x369 putchar()
+0x36a putchar()
+0x36b putchar()
+0x36c Exit
+0x36d Oops! Invalid Opcode, value=7b
+0x36e Oops! Invalid Opcode, value=7b
+0x36f Oops! Invalid Opcode, value=7b
+0x370 Oops! Invalid Opcode, value=7b
+0x371 Oops! Invalid Opcode, value=7b
+0x372 Oops! Invalid Opcode, value=7b
+0x373 Oops! Invalid Opcode, value=7b
+0x374 Oops! Invalid Opcode, value=7b
+0x375 Oops! Invalid Opcode, value=7b
+0x376 Oops! Invalid Opcode, value=7b
+0x377 Oops! Invalid Opcode, value=7b
+0x378 Oops! Invalid Opcode, value=7b
+0x379 Oops! Invalid Opcode, value=7b
+0x37a Oops! Invalid Opcode, value=7b
+0x37b Oops! Invalid Opcode, value=3c
+0x37c Oops! Invalid Opcode, value=3c
+0x37d Oops! Invalid Opcode, value=7b
+0x37e Oops! Invalid Opcode, value=7b
+0x37f Oops! Invalid Opcode, value=7b
+0x380 Oops! Invalid Opcode, value=7b
+0x381 reset
+0x382 reset
+0x383 Oops! Invalid Opcode, value=7b
+0x384 Oops! Invalid Opcode, value=7b
+0x385 Oops! Invalid Opcode, value=7b
+0x386 Oops! Invalid Opcode, value=3a
+0x387 Oops! Invalid Opcode, value=3a
+0x388 Oops! Invalid Opcode, value=7b
+0x389 Oops! Invalid Opcode, value=7b
+0x38a Oops! Invalid Opcode, value=7b
+0x38b Oops! Invalid Opcode, value=ab
+0x38c Oops! Invalid Opcode, value=ab
+0x38d Oops! Invalid Opcode, value=7b
+0x38e Oops! Invalid Opcode, value=7b
+</pre>
+<p>The program will read license.drm in current directory and check.<br />
+It takes me short time to write the disassembler, but I spend much time finding the correct values:</p>
+<pre class="lang:sh decode:true"><strong>5F 27 8B DC E7 EE 66 52 3A 86 BF DB 30 39 00 EB</strong></pre>
+<pre class="lang:sh decode:true ">root@ubuntu:~/ctf/vm# ./vm-2fbed3f5a894d56be6b2ba328f9e2411
+Stage 1 complete! That was easy, wasn't it?
+Stage 2 complete! Keep moving!
+Stage 3 complete! You are nearly there!
+Stage 4 complete! Hope you liked it.
+
+Now you can haz key: 'Vm_ReVeRsInG_Is_FuN'</pre>
+<p>&nbsp;</p>

@@ -1,0 +1,73 @@
+# Dependencies
+markdown:         kramdown
+highlighter:      rouge
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+  # https://github.com/jekyll/jekyll/issues/4619#issuecomment-191267346
+  syntax_highlighter_opts:
+    # Rouge Options › https://github.com/jneen/rouge#full-options
+    css_class: 'highlight'
+    #line_numbers: true # bad idea, spans don't need linenos and would inherit this option
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+      start_line: 1
+      
+
+# Setup
+title:            'DevelBranch'
+tagline:          'Software Research and Development'
+description:      'Software Research and Development'
+#description: > # this means to ignore newlines until "baseurl:"
+#  DevelBranch | Software Research and Development.
+url:              "https://develbranch.com"
+site.github.url: https://develbranch.github.io # GitHub URL
+#relative_url:     ''
+#baseurl:          ''
+                  # the optional subpath of your site, e.g. "/blog"
+                  # NB: This applies to all pages in your Jekyll site.
+                  # If you want to move just the blog index pages but keep
+                  # other pages at root, see the paginate_path and
+                  # sidebar_blog_link below.
+
+author:
+  name:           'Quang Nguyen'
+  url:            https://twitter.com/quangnh89
+
+paginate:         5
+# paginate_path:    '/page:num'
+                    # Or '/blog/page:num' if you want to move your index pages
+
+#SEARCH ENGINES
+#Changing this next setting to 'true' will allow your site to be indexed by search engines (like Google)
+publish: true
+
+site.page.comments: false
+site.google_analytics: 'UA-74760694-1'
+permalink:           none
+
+plugins:
+  - jekyll-feed
+  - jekyll-gist
+  - jekyll-paginate
+  - jekyll-seo-tag
+  - jekyll-sitemap
+  - jekyll-redirect-from
+
+# Sidebar link settings
+sidebar_home_link:  true
+# sidebar_blog_link:  '/blog'   # By default, your home page is your blog
+                                # page. If you change your paginate_path,
+                                # set this to the root of the paginate_path
+                                # to enable a separate blog link.
+
+# RSS 2.0 can be used instead of Atom by uncommenting following two lines
+feed:
+   path:	     rss-feed.xml
+
+# Exclude from processing.
+exclude:
+  - Gemfile

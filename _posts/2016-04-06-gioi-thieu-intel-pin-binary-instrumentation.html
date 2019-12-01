@@ -1,0 +1,229 @@
+---
+layout: post
+title: Giới thiệu Intel Pin Binary Instrumentation Tool
+date: 2016-04-06 14:33:15.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- Tutorials
+tags:
+- Binary Instrumentation Tool
+- Intel
+- introspection code
+- Pin
+- Reversing
+excerpt: Bài viết giới thiệu những khái niệm cơ bản nhất của Binary Instrumentation
+  và từng bước để xây dựng công cụ instrumentation dựa trên Intel Pin -  A Dynamic
+  Binary Instrumentation Tool.
+---
+<h1>Intel Pin</h1>
+<p><strong>Instrumentation system</strong> được hiểu là hệ thống đo đạc, theo dõi và điều khiển một tiến trình. Pin là một binary instrumentation system (do Intel xây dựng ) cho phép người sử dụng có thể inject các đoạn mã kiểm tra (tạm gọi là introspection code) vào một vị trí bất kỳ trong một tiến trình đang chạy. Các đoạn mã kiểm tra này có tác dụng quan sát hành vi của một tiến trình. Các tham số có thể quan sát bao gồm nội dung của tất cả các thanh ghi và giá trị của một ô nhớ bất kì tại một thời điểm. Introspection code được xây dựng dựa trên Intel Pin framework, được gọi là <strong>Pin tool</strong>. Pin tool được xây dựng để phục vụ nhiều mục đích khác nhau như: application profiling, phát hiện memory leak, ... Intel pin hỗ trợ cả 2 nền tảng 32bit và 64bit, có thể chạy trên Microsoft Windows, Linux, OSX và Android.</p>
+<h2>Tổng quan</h2>
+<h3>Instrumentation là gì?</h3>
+<p>Instrumentation là phương pháp thêm một số đoạn mã trung gian ( tạm gọi là Instrumentation Code - IC) vào chương trình để lấy các thông tin của chương trình trong quá trình thực thi. Để thực hiện Instrumentation, có 2 phương pháp chính đang được sử dụng hiện nay:</p>
+<ul>
+<li><strong><em>Source Code Instrumentation (SCI)</em></strong>: Tức là thêm IC vào chương trình trước khi biên dịch. Quá trình này chỉ thực hiện được nếu có source code của chương trình. Đây là phương pháp instrumentation mà American Fuzzy Lop (AFL Fuzzer) của lcamtuf đang sử dụng.</li>
+<li><strong><em>Binary Instrumentation (BI)</em></strong>: thêm IC vào chính file thực thi của chương trình. BI cũng có 2 phương pháp có thể thực hiện:
+<ul>
+<li><em>Static Instrumentation</em>: Sử dụng một chương trình disassembler hay emulator để ghi các đoạn mã IC vào trong binary nhưng không làm thay đổi hoạt động của chương trình ban đầu.</li>
+<li><em>Dynamic Instrumentation</em>: Chèn IC vào chương trình trong quá trình thực thi, không làm ảnh hưởng tới file binary ban đầu. Đây là cách tiếp cận của Pin framework.</li>
+</ul>
+</li>
+</ul>
+<h3>Ví dụ về instrumentation</h3>
+<p><strong>Một ví dụ về SCI</strong></p>
+<p>Trước khi thêm IC</p>
+<pre class="lang:c++ decode:true" title="Original ">void foo(int x){
+    switch (x){
+        case 0:
+            printf("devel\n");
+            break;
+        case 1:
+            printf("branch\n");
+            break;
+        default:
+            printf("Invalid\n");
+            break;
+    }
+}</pre>
+<p>Sau khi thêm IC</p>
+<pre class="lang:c++ decode:true">bool sci[5];
+
+void foo(int x){
+    sci[0] = true;
+    switch (x){
+        case 0:
+            sci[1] = true;
+            printf("devel\n");
+            break;
+        case 1:
+            sci[2] = true;
+            printf("branch\n");
+            break;
+        default:
+            sci[3] = true;
+            printf("Invalid\n");
+            break;
+    }
+    sci[4] = true;
+}</pre>
+<p><strong>Ví dụ về BI</strong></p>
+<pre class="lang:asm decode:true">count++
+xor ebx, ebx
+count++
+mov eax, 1337h
+count++
+xor eax, ebx</pre>
+<p><em>Ưu điểm và nhược điểm của sử dụng Pin tool ( hoặc các Dynamic Instrumentation Tool khác)</em>:</p>
+<p>Ưu điểm:</p>
+<ul>
+<li>Có thể thực hiện instrumentation với bất cứ một chương trình nào.</li>
+<li>Không cần biết mã nguồn của chương trình.</li>
+<li>Rất linh động, do có thể tùy trình được ( bằng code) trong quá trình instrumentation</li>
+</ul>
+<p>Nhược điểm:</p>
+<ul>
+<li>Hiệu năng thấp.</li>
+</ul>
+<h2>Xây dựng Pin tool</h2>
+<h3>Tải Intel Pin framework</h3>
+<p>Để thực hiện xây dựng một pintool cho riêng mình, cần tải công cụ Intel Pin Framework từ trang chủ của Intel:</p>
+<p>https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool</p>
+<p>Tại thời điểm viết bài này, Intel đang duy trì 2 phiên bản: Bản 3.0 và bản 2.14.</p>
+<h3>Xây dựng Tool</h3>
+<p>Chúng ta nên bắt đầu bằng một ví dụ kinh điển nhất của Pin framework: <strong>Simple Instruction Count</strong> ( tham khảo source/tools/SimpleExample/icount.cpp và source/tools/ManualExample/inscount0.cpp )</p>
+<p><img class="alignnone size-full wp-image-64" src="{{ site.baseurl }}/assets/slide_018.jpg" alt="Instruction Counting Tool" width="720" height="540" /></p>
+<pre class="lang:c decode:true " title="instruction counter">#include "pin.H"
+#include &lt;iostream&gt;
+
+UINT64 ins_count = 0; // biến lưu lại số lượng instruction đã đi qua 
+
+INT32 Usage() {
+    cerr &lt;&lt; "This tool prints out the number of dynamic instructions executed to stderr.\n \n";
+    cerr &lt;&lt; KNOB_BASE::StringKnobSummary();
+    cerr &lt;&lt; endl;
+    return -1;
+}
+
+VOID docount() { // analysis routine
+    ins_count++; // biến được tăng lên trước khi 1 instruction được thực thi
+}
+
+VOID Instruction(INS ins, VOID *v) { // instrumentation routine
+    /* hàm được gọi bởi Pin framework
+       pin framework sẽ thực hiện các bước như sau:
+         - chuyển stack của chương trình về pin stack 
+         - lưu lại toàn bộ các thanh ghi
+         - gọi hàm docount 
+         - khôi phục toàn bộ các giá trị thanh ghi
+         - chuyển stack về stack của chương trình 
+    */
+ 
+    /*  INS_InsertCall nhận các tham số sau:
+            tham số 1 : Instruction được instrument
+            tham số 2 : Vị trí của hàm docount được thực thi : 
+                         IPOINT_BEFORE trước khi thực hiện lệnh
+                         IPOINT_AFTER  sau khi thực hiện lệnh, thường không valid với các lệnh rẽ nhánh
+                         IPOINT_TAKEN_BRANCH sau khi thực hiện lệnh rẽ nhánh
+            tham số 3 : hàm phân tích, trong ví dụ này là docount
+            từ tham số thứ 4 trở đi là các tham số của hàm docount. 
+                        Kết thúc của chuỗi này là giá trị IARG_END. Nên tham khảo IARG_TYPE
+    */
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_END);
+}
+
+VOID Fini(INT32 code, VOID *v) { // hàm này được gọi khi đã kết thúc chương trình 
+    cout &lt;&lt;  "Count " &lt;&lt; ins_count  &lt;&lt; endl;
+}
+
+/*entry point của pin tool */
+int main(int argc, char *argv[])
+{
+    // phân tích các tham số được truyền vào cho pin tool ( không phải cho chương trình)
+    if( PIN_Init(argc,argv) ) {
+        return Usage();
+    }
+    
+    // đăng kí hàm callback để instrument 
+    INS_AddInstrumentFunction(Instruction, 0);
+    // đăng kí hàm callback khi chương trình chính kết thúc
+    PIN_AddFiniFunction(Fini, 0);
+
+    // Never returns
+    PIN_StartProgram();  // bắt đầu thực thi chương trình và instrument nó
+    return 0;
+}
+</pre>
+<p>Trong trường hợp hàm docount muốn có nhiều tham số đầu vào hơn, thì viết như sau:</p>
+<pre class="lang:c decode:true">/*đọc thêm giá trị của thanh ghi PC mỗi khi thực thi instruction */
+VOID docount(VOID * ip ) { // analysis routine
+    cout &lt;&lt; "pc:"&lt;&lt;ip&lt;&lt;endl;
+    ins_count++; // biến được tăng lên trước khi 1 instruction được thực thi
+}
+
+VOID Instruction(INS ins, VOID *v) { // instrumentation routine
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_INST_PTR, IARG_END);
+}</pre>
+<p>Trong ví dụ trên IARG_INST_PTR sẽ được pin tool hiểu là truyền tham số Instruction Pointer cho hàm docount. Hàm này cũng phải khai báo sẽ nhận thêm tham số VOID *ip để xử lý.</p>
+<p>Một ví dụ khác:</p>
+<pre class="lang:c++ decode:true">/* Đọc thêm giá trị của thanh ghi PC mỗi khi thực thi instruction 
+   Đọc thêm giá trị của thanh ghi EAX (hoặc RAX) khi thực thi
+*/
+VOID docount(VOID * ip, VOID * gax ) { // analysis routine
+    cout &lt;&lt; "pc:"&lt;&lt;ip&lt;&lt;endl;
+    cout &lt;&lt; "GAX:"&lt;&lt;gax&lt;&lt;endl;
+    ins_count++; // biến được tăng lên trước khi 1 instruction được thực thi
+}
+
+VOID Instruction(INS ins, VOID *v) { // instrumentation routine
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, 
+                        IARG_INST_PTR,   // tương ứng với tham số VOID * ip
+                        IARG_REG_VALUE, REG_GAX, // tương ứng với tham số VOID * gax
+                        IARG_END);
+}</pre>
+<p>Trong ví dụ trên, cặp giá trị IARG_REG_VALUE và REG_GAX sẽ được pin hiểu là truyền tham số có nội dung của thanh ghi EAX hoặc RAX cho hàm docount. Hàm này cũng phải khai báo sẽ nhận thêm tham số này.</p>
+<p>Có thể sử dụng tường minh là REG_EAX hoặc REG_RAX. Môi trường 32bit, chỉ tồn tại EAX, trên môi trường 64bit mới có cả 2 thanh ghi này ( EAX là 1 phần của RAX). Do đó, để code build không phụ thuộc vào môi trường, nên dùng giá trị REG_GAX.</p>
+<h3>Build tool</h3>
+<p>Intel có đưa kèm rất nhiều ví dụ để viết một tool dựa vào Pin.Các tool này nằm trong thư mục <strong>source/tools/ManualExample, source/tools/SimpleExample</strong></p>
+<ul>
+<li>Build với <a href="https://software.intel.com/sites/landingpage/pintool/docs/76991/Pin/html/index.html#BuildingExamples" target="_blank">gcc</a></li>
+<li>Build với <a href="https://software.intel.com/sites/landingpage/pintool/docs/76991/Pin/html/index.html#WindowsNotes" target="_blank">windows</a>: Trang chủ của Intel yêu cầu cài cygwin để build. Tuy nhiên, mình vốn không thích cài nhiều nên mình sẽ hướng dẫn cách build mà không cần cygwin.</li>
+</ul>
+<h3>Build pin tool với Microsoft Visual Studio</h3>
+<p>Intel build sẵn pin thành các file lib, ở chế độ Release. Các cấu hình dưới đây sẽ dành cho profile Release trong project của Visual Studio.</p>
+<p>Tạo một project có dạng  Win32 DLL</p>
+<p><img class="alignnone size-full wp-image-51" src="{{ site.baseurl }}/assets/pin0.png" alt="pin0" width="739" height="494" /><br />
+Giải nén pin tải được vào thư mục pin-windows, cùng cấp với solution của project trên</p>
+<p>Thiết lập các Preprocessor tại nhánh C/C++ &gt; Preprocessor như sau:</p>
+<pre class="nums:false lang:default decode:true">TARGET_WINDOWS;TARGET_IA32;HOST_IA32;_SECURE_SCL=0;USING_XED;NDEBUG</pre>
+<p><img class="alignnone size-full wp-image-52" src="{{ site.baseurl }}/assets/pin1.png" alt="pin1" width="740" height="552" /></p>
+<p>Cấu hình Runtime Library là MT: C/C++ &gt; Code Generation:</p>
+<pre class="nums:false lang:default decode:true">Multi-threaded (/MT)</pre>
+<p><img class="alignnone size-full wp-image-53" src="{{ site.baseurl }}/assets/pin2.png" alt="pin2" width="745" height="492" /></p>
+<p>Cấu hình các thư mục chứa file header của pin : C/C++ &gt; General &gt; Additional Include Directories</p>
+<pre class="nums:false lang:default decode:true">"$(SolutionDir)..\pin-windows\source\include\pin";"$(SolutionDir)..\pin-windows\source\include\pin\gen";"$(SolutionDir)..\pin-windows\extras\xed-ia32\include";"$(SolutionDir)..\pin-windows\extras\components\include"</pre>
+<p><img class="alignnone size-full wp-image-54" src="{{ site.baseurl }}/assets/pin3.png" alt="pin3" width="750" height="508" /></p>
+<p>Cấu hình thư mục chứa lib để link: Linker &gt; General &gt; Additional Library Directories</p>
+<pre class="nums:false lang:default decode:true">"$(SolutionDir)..\pin-windows\ia32\lib";"$(SolutionDir)..\pin-windows\ia32\lib-ext";"$(SolutionDir)..\pin-windows\extras\xed-ia32\lib"
+</pre>
+<p><img class="alignnone size-full wp-image-55" src="{{ site.baseurl }}/assets/pin4.png" alt="pin4" width="747" height="616" /></p>
+<p>Cấu hình thư viện dependency:</p>
+<p>Linker &gt; Input &gt; Additional Dependencies</p>
+<pre class="nums:false lang:default decode:true">ntdll-32.lib libxed.lib pin.lib pinvm.lib libcmt.lib libcpmt.lib</pre>
+<p>Linker &gt; Input &gt; Ignore All Default Libraries</p>
+<pre class="nums:false lang:default decode:true">Yes (/NODEFAULTLIB)</pre>
+<p><img class="alignnone size-full wp-image-56" src="{{ site.baseurl }}/assets/pin5.png" alt="pin5" width="746" height="501" /></p>
+<p>Cấu hình Entry point: Linker &gt; Advanced &gt; Entry Point</p>
+<pre class="nums:false lang:default decode:true">Ptrace_DllMainCRTStartup@12</pre>
+<p><img class="alignnone size-full wp-image-57" src="{{ site.baseurl }}/assets/pin6.png" alt="pin6" width="751" height="489" /></p>
+<h3>Sử dụng tool</h3>
+<p>Để sử dụng pin chạy lệnh sau:</p>
+<pre class="lang:sh decode:true">pin -t path/to/pintool.so -- path/to/application [application args]</pre>
+<p>Nếu chạy ở chế độ Inject code, thì sử dụng lệnh sau:</p>
+<pre class="lang:default decode:true">pin -t path/to/pintool.so --pid 1234</pre>
+<h3>Khi chơi CTF, hãy nghĩ đến pin tool</h3>
+<p>Một ví dụ khiến người ta nghĩ đến instruction counter và pin tool là khi chơi CTF. Một kĩ thuật khá hay trong khi giải các bài CTF dạng reverse engineering là <strong>Side channel attack</strong>. Thông thường, các bài reverse sẽ có những trick rất khó để vượt qua trong thời gian ngắn. Dạng phổ biến nhất, thường là cho người chơi input chuỗi kí tự, qua nhiều phép biến đổi lằng nhằng sẽ kiểm tra xem có đúng là input hợp lệ hay không. Nếu hợp lệ thì in ra cờ. Phép kiểm tra này thường duyệt qua từng kí tự. Nếu kí tự đó khớp thì mới kiểm tra kí tự kế tiếp. Chính vì vậy, người ta sẽ input từng kí tự (printable characters chẳng hạn) và đếm số lượng instruction đã thực thi đối với kí tự đó. Nếu gặp 1 kí tự có số instruction đột biến so với các kí tự còn lại, đó là kí tự của flag. Writeup của Vulnhub Team đã thể hiện rất rõ điều này (rất may là mình ko phải viết lại vào đây, vì mình lười). Cám ơn Vulnhub Team. : https://ctf-team.vulnhub.com/picoctf-2014-baleful/</p>
+<h2>Vấn đề hiệu năng</h2>
+<p>Có một paper rất hay nói về các vấn đề khi build một công cụ phân tích chương trình bằng phương pháp BI, đồng thời, paper có so sánh các framework với nhau:  <a href="http://www.cs.virginia.edu/kim/courses/cs851/papers/luk05pin.pdf" target="_blank">Building Customized Program Analysis Tools with Dynamic Instrumentation</a></p>
+<p>Trong bài kế tiếp mình sẽ làm rõ hơn về kĩ thuật xây dựng pin tool.</p>

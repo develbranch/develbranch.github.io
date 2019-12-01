@@ -1,0 +1,85 @@
+---
+layout: post
+title: Cracking Immortal Descendants Crackme 8
+date: 2017-05-14 17:55:09.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- Tutorials
+tags:
+- Crackme
+- Reversing
+- VB
+- Visual Basic
+---
+<p><img class="wp-image-142 size-full" src="{{ site.baseurl }}/assets/crackme8.png" alt="WhizKID's Crackme Challenge 8" width="403" height="417" /> WhizKID's Crackme Challenge 8</p>
+<p>Hôm nay, tôi sẽ hướng dẫn một vài phương pháp để giải một bài crackme. Tôi sử dụng WhizKID's Crackme Challenge 8 (<a href="{{ site.baseurl }}/uploads/2017/05/idcrackme8.zip">HERE</a>). Tôi sử dụng máy ảo VMware và thử chạy crackme này. Crackme hoạt động hoàn toàn bình thường.</p>
+<p>Thử kiểm tra ứng dụng với chương trình PEiD, ta có kết quả như sau:<br />
+<img class="size-full wp-image-143 aligncenter" src="{{ site.baseurl }}/assets/peid.png" alt="" width="422" height="234" /><br />
+Chương trình này được viết bằng Visual Basic. Để đơn giản, tôi sử dụng VB Decompiler thử dịch ngược chương trình. Thử mở form của chương trình, có thể nhận thấy chương trình có 7 nút "Check key" khác nhau nhưng được đặt ở cùng một vị trí. Mỗi khi lựa chọn một option( Easy serial, Harder Serial, ...) thì nút tương ứng sẽ được hiển thị ( thuộc tính Visible được thiết lập bằng True).</p>
+<h2>Easy Serial<br />
+<img class="size-full wp-image-144 aligncenter" src="{{ site.baseurl }}/assets/vbd1.png" alt="" width="738" height="507" /></h2>
+<p>Khi chọn tùy chọn "Easy Serial", chương trình sẽ hiển thị nút ứng với <strong>Command1</strong>.<br />
+Mở đoạn code tương ứng với "Easy Serial", có thể nhận thấy khi nhập serial là <strong>23784628356267</strong>, chương trình sẽ hiển thị <strong>"Easy Serial Part Completed..."</strong> và qua được thử thách này.</p>
+<pre class="lang:vb decode:true">Private Sub Command1_Click() '40E890
+Dim var_1C As Variant
+loc_0040E8B5: var_8 = &amp;H401188
+loc_0040E8F8: Set var_1C = Me
+loc_0040E907: var_18 = Text1.Text
+loc_0040E911: If var_18 &gt;= 0 Then GoTo loc_0040E929
+loc_0040E962: If (var_18 = "23784628356267") = 0 Then GoTo loc_0040EA0D
+loc_0040E9A9: var_18 = Me.BackColor
+loc_0040E9CA: var_4C = 10
+loc_0040E9D0: var_54 = 80020004h
+loc_0040E9D3: var_34 = var_18
+loc_0040E9D6: var_44 = 80020004h
+loc_0040E9E7: var_3C = 8
+loc_0040E9EA: var_64 = "Failed Easy Serial Part..."
+loc_0040E9F1: var_6C = 8
+loc_0040E9F4: var_2C = "Failed Easy Serial Part..."
+loc_0040EA08: GoTo loc_0040EAAD
+loc_0040EA4E: var_18 = Me.BackColor
+loc_0040EA6C: var_5C = 10
+loc_0040EA6F: var_4C = 10
+loc_0040EA75: var_54 = 80020004h
+loc_0040EA78: var_34 = var_18
+loc_0040EA7B: var_44 = 80020004h
+loc_0040EA8C: var_3C = 8
+loc_0040EA8F: var_64 = "Easy Serial Part Completed..."
+loc_0040EA96: var_6C = 8
+loc_0040EAAD:
+loc_0040EAB1: MsgBox "Easy Serial Part Completed...", 64, var_18
+loc_0040EAE3: GoTo loc_0040EB13
+loc_0040EB12: Exit Sub
+loc_0040EB13: Exit Sub
+End Sub</pre>
+<h2>Harder Serial</h2>
+<p><img class="size-full wp-image-145 aligncenter" src="{{ site.baseurl }}/assets/vbd2.png" alt="" width="778" height="486" /></p>
+<p>Tương tự phần trước, phần 2 cũng so sánh chuỗi nhập vào với một xâu cố định. Nhưng khác so với phần trước, xâu cố định phải tính toán qua hàm <strong>_vbaStrR8</strong> . Để đơn giản, có thể sử dụng OllyDbg để đặt breakpoint tại địa chỉ <strong>0x40EC42</strong>.</p>
+<p><img class="size-full wp-image-146 aligncenter" src="{{ site.baseurl }}/assets/vbd3.png" alt="" width="717" height="480" /></p>
+<p>Có thể thấy serial phù hợp là <strong>ADUJSDMD8387079498SOPEMNSD</strong></p>
+<h2>Name/Serial</h2>
+<p>Phần này khó hơn các phần trước do cần 2 yếu tố để xác thực. Chương trình yêu cầu người dùng nhập tên và serial, Serial đúng sẽ được tính toán dựa trên name. Kiểm tra <strong>Command3</strong>:</p>
+<p><img class="size-full wp-image-148 aligncenter" src="{{ site.baseurl }}/assets/vbd4.png" alt="" width="786" height="504" /></p>
+<p>&nbsp;</p>
+<p>Có thể thấy rằng serial được tính thông qua hàm MakeKey ( địa chỉ <strong>0x0040EE80</strong>) sau đó tính toán và trả về một số tương ứng. số này là serial. VB Decompiler gần như không có tác dụng gì khi decompiler hàm này. Kết quả sai hoàn toàn.</p>
+<p>Trong tình huống này, tôi sử dụng IDA. Tôi đọc nội dung của hàm MakeKey và hiểu thuật toán sinh serial của hàm. Hàm này có thể viết một đoạn giả mã như sau:</p>
+<pre class="lang:python decode:true">def serial(name):
+    return ((ord(name[-1]) * 13 + (483 / 3)) ** 2) * 154</pre>
+<p><img class="size-full wp-image-149 aligncenter" src="{{ site.baseurl }}/assets/crackme8_serial.png" alt="" width="411" height="423" /></p>
+<h2><strong>Matrix Part</strong></h2>
+<p>Bài này đơn giản hơn, có lẽ do có bug. Chỉ cần tick tất cả các checkbox là xong.</p>
+<h2>Key File</h2>
+<p>Phần này thì đơn giản hơn, <strong>KeyFile </strong>ứng với Option4. Mở nội dung của hàm này bằng VB decompiler thì sẽ không thấy phần kiểm tra file để active chương trình đâu cả. Vấn đề này luôn xảy ra do VB Decompiler có lúc sai. Chúng ta xem kĩ hàm này bằng IDA. Địa chỉ hàm là 0x4118A0:</p>
+<p><img class="size-full wp-image-152 aligncenter" src="{{ site.baseurl }}/assets/keyfile.png" alt="" width="652" height="364" /></p>
+<p>&nbsp;</p>
+<p>Sau khi kiểm tra hàm một lượt, tôi phát hiện hàm gọi tới địa chỉ 0x40F4B0 để check file.</p>
+<p><img class="size-full wp-image-153 aligncenter" src="{{ site.baseurl }}/assets/keyfile2.png" alt="" width="723" height="244" /></p>
+<p>Phân tích hàm này bằng VB Decompiler, Có thể thấy rằng: Nếu ta đặt 1 file cùng thư mục với Crackme và có tên là <strong>wk.dat</strong>, nội dung của file là "<strong>Easy, eh?</strong>", ta sẽ qua được phần kiểm tra.</p>
+<p><img class="size-full wp-image-154 aligncenter" src="{{ site.baseurl }}/assets/keyfile3.png" alt="" width="834" height="435" /></p>
+<h2>NAG</h2>
+<p>Phần này có lẽ nên patch chương trình, vì nó không có gì thú vị cả. Nhảy tới địa chỉ 0x00412B5E, và patch các lệnh NOP mã 0x90 tới địa chỉ 0x412B6F. Để đơn giản, có thể convert địa chỉ 0x00412B5E thành offset trên file : 0x00012B5E và patch 18 byte NOP.</p>
+<h2><b>cripple</b></h2>
+<p>Phần này cũng chả có gì để bàn. Nút disable thực chất chỉ hiển thị đúng một messagebox có chữ  "Cripple Part Completed..."</p>
+<p>&nbsp;</p>

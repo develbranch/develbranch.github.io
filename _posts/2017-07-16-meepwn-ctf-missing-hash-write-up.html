@@ -1,0 +1,110 @@
+---
+layout: post
+title: "[MeePwn CTF] Missing Hash write up"
+date: 2017-07-16 08:20:49.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- CTF
+tags:
+- angr
+- meepwn
+- Reversing
+- writeup
+
+excerpt: "[MeePwn CTF] Missing Hash solution"
+---
+<p>For English version, please read below.</p>
+<p>Binary: <a href="{{ site.baseurl }}/uploads/2017/07/crackme2_fix4.zip">crackme2_fix4</a></p>
+<h2>Tiếng Việt</h2>
+<h3>Mô tả</h3>
+<p>Thử thách này có thể mô tả như sau:<br />
+Tại địa chỉ 0x401588, chương trình hiển thị thông báo <strong>"Enter Your Hero: "</strong>, yêu cầu nhập vào một chuỗi printable, tạm gọi là <em>heroName</em>. Chuỗi kí tự này có kích thước 10 bytes. Khi nhận chuỗi này, chương trình sẽ thông qua 1 hàm tại địa chỉ 0x401500, tính toán các giá trị và lưu lại các giá trị này. Tôi cũng không quan tâm tới các giá trị này lắm. Sau đây là giả mã của hàm 0x401500.</p>
+<pre class="lang:c decode:true ">unsigned __int16 __cdecl sub_401500(char *a1, __int16 *a2, unsigned __int16 a3)
+{
+unsigned __int16 v4; // [sp+Eh] [bp-Ah]@1
+signed int i; // [sp+10h] [bp-8h]@1
+
+v4 = a3;
+for ( i = 0; (signed __int16)a3 &gt; i; ++i )
+{
+v4 = (~a2[i] &amp; v4) + (~v4 &amp; a2[i]);
+LOBYTE(v4) = v4 + a1[i];
+}
+return v4;
+}</pre>
+<p>&nbsp;</p>
+<p>Một <em>heroName</em> sẽ được gọi là hợp lệ nếu thỏa mãn tất cả các điều kiện sau:</p>
+<ul>
+<li>kí tự đầu tiên là 'Z'</li>
+<li>kí tự cuối cùng là '!'</li>
+<li>các giá trị tại các địa chỉ sau bằng 0: 0x403040, 0x403042, 0x403044, 0x403046, 0x403048, 0x40304A, 0x40304C, 0x40304E, 0x403050</li>
+</ul>
+<h3>Cách giải</h3>
+<p>Để giải thử thách này, tôi sử dụng <a href="http://angr.io/">angr binary analysis framework</a> . Tôi thiết lập trạng thái bắt đầu tại địa chỉ 0x4015B6, chương trình sẽ bắt đầu phân tích sau khi một chuỗi heroName giả định được nhập vào. Chuỗi kí tự được nhập vào sẽ lưu tại địa chỉ 0x040305A, tôi sẽ đặt tại địa chỉ này một symbolic bitvector (BVS), có kích thước đúng bằng số kí tự nhập vào (10 kí tự * 8 bits). Các kí tự này đều là printable nên tôi sẽ thêm ràng buộc: kí tự nằm trong khoảng 0x20&lt;=x&lt;=0x7e. Chúng ta cần tìm một chuỗi có thể để chương trình "chạy" đến địa chỉ 0x401B21, và chắc chắn không bao giờ đến địa chỉ 0x00401B1. Sau khi tìm thành công 1 "đường" để có thể đến được 0x401B21, ta biết được sẽ có rất nhiều giá trị phù hợp với "đường" này. Để tìm ra cờ chính xác, ta cần thêm một só ràng buộc phù hợp với điều kiện ở trên. Script mất khoảng gần 3 giây để thực thi và tìm ra giá trị phù hợp.</p>
+<p>Toàn bộ code được tôi để phía bên dưới: crackme2.py</p>
+<h2>English version</h2>
+<h3>Analyze</h3>
+<p>The program displays a message: <strong>"Enter Your Hero: "</strong>, and you must enter a printable string, I call it <em>heroName</em>. The length of <em>heroName</em> is 10. The program will calculate many values from input tring and store these values. I don't care about these values. The program uses only one function at 0x401500. There is the pseudocode of this function:</p>
+<pre class="lang:c decode:true ">unsigned __int16 __cdecl sub_401500(char *a1, __int16 *a2, unsigned __int16 a3)
+{
+unsigned __int16 v4; // [sp+Eh] [bp-Ah]@1
+signed int i; // [sp+10h] [bp-8h]@1
+
+v4 = a3;
+for ( i = 0; (signed __int16)a3 &gt; i; ++i )
+{
+v4 = (~a2[i] &amp; v4) + (~v4 &amp; a2[i]);
+LOBYTE(v4) = v4 + a1[i];
+}
+return v4;
+}</pre>
+<p>A valid <em>heroName</em> MUST satisfy the following conditions:</p>
+<ul>
+<li>the fist character is 'Z'</li>
+<li>the last character is '!'</li>
+<li>all the values at these addresses are equal to 0: 0x403040, 0x403042, 0x403044, 0x403046, 0x403048, 0x40304A, 0x40304C, 0x40304E, 0x403050</li>
+</ul>
+<h3>Solution</h3>
+<p>To solve this challenge, I use<a href="http://angr.io/"> angr binary analysis framework</a>. I set the entry state at 0x4015B6, angr will start to analyze after a symbolic string is stored. The input string is stored in 0x040305A, I store a symbolic bitvector (BVS) in 0x040305A, its size is 10 chars * 8 bits. All these characters are printable, so I add more constraint: 0x20 &lt;= character &lt;= 0x7e. We need to find a path to 0x401B21, and avoid 0x00401B1. After finding a path, we know there are many acceptable strings. To find the correct one, we need to add some constraints that matchs to the conditions of a valid heroName.</p>
+<p>The solution is here: crackme2.py</p>
+<h2>Crackme2.py</h2>
+<p>Key: Zer0C0d3r!</p>
+<pre class="lang:python decode:true">import angr
+
+# load the binary into an angr project.
+proj = angr.Project('crackme2_fix4.exe', load_options={"auto_load_libs": False})
+# I'm going to skip all the beginning of the program.
+state = proj.factory.entry_state(addr=0x004015B6)
+
+# scanf() reads from stdin and stores it a this address
+bind_addr = 0x040305A
+# a symbolic input string with a length up to 10 bytes
+input_string = state.se.BVS("input_string", 8 * 10)
+# To be safe, I'm constraining input string. They are printable characters
+for byte in input_string.chop(8):
+state.add_constraints(byte &gt;= ' ') # '\x20'
+state.add_constraints(byte &lt;= '~') # '\x7e'
+state.add_constraints(byte != 0) # null
+
+# bind the symbolic string at bind_addr
+state.memory.store(bind_addr, input_string)
+
+# Attempt to find a path
+path = proj.factory.path(state=state)
+ex = proj.surveyors.Explorer(start=path, find=0x401B21, avoid=0x00401B1)
+ex.run()
+
+state = ex.found[0].state
+# We know all the values at: 0x403040, 0x403042, 0x403044, 0x403046, 0x403048, 0x40304A, 0x40304C, 0x40304E, 0x403050
+for i in range(18):
+state.add_constraints(state.memory.load(0x408040 + i, 1) == 0)
+# We know the flag starts with "Z" and ends with "!"
+state.add_constraints(state.memory.load(bind_addr + 9, 1) == '!')
+state.add_constraints(state.memory.load(bind_addr, 1) == 'Z')
+
+print 'Found:', state.se.any_str(input_string)
+# Zer0C0d3r!
+# 2.7s</pre>
+<p>&nbsp;</p>

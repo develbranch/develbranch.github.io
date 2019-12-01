@@ -1,0 +1,185 @@
+---
+layout: post
+title: "[Meepwn CTF] WhoAreYou write up"
+date: 2017-07-16 09:23:40.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- CTF
+tags:
+- Capstone
+- keystone
+- meepwn
+- Reversing
+- unicorn
+- writeup
+excerpt: "[Meepwn CTF] WhoAreYou solution"
+---
+<h2>Phân tích</h2>
+<p>Thử thách này được pack bằng UPX, rất nhanh chóng, tôi dùng lệnh <code>upx -d</code> để unpack. Sau khi giải nén ta có: Thử thách này sẽ nhận một chuỗi đầu vào, tính toán ra một giá trị 64bit và kiểm tra với giá trị có sẵn. Nếu đúng, thì đó chính là cờ. Giả mã của hàm main khá ngắn:</p>
+<pre class="lang:c decode:true">int sub_140001230()
+{
+__int64 v1; // [sp+0h] [bp-48h]@4
+char name[9]; // [sp+20h] [bp-28h]@1
+__int64 v3; // [sp+30h] [bp-18h]@4
+
+printf("Who Are You? ");
+scanf("%8s", name);
+if ( qword_1400067B0(name) )
+printf("nope! Go and find yourself :(\n");
+else
+printf("Yeah! Its truly you :) here is ur flag: MeePwnCTF&#123%s}\n");
+return 0;
+}</pre>
+<p>Vấn đề nằm ở đoạn mã mà qword_1400067B0 đang trỏ tới. Nếu theo phân tích bình thường, chúng ta sẽ bị nhầm với đoạn mã ở đây:</p>
+<pre class="lang:c decode:true ">__int64 sub_140001030()
+{
+  __int64 result; // rax@1
+
+  qmemcpy((void *)qword_1400067B8, sub_140004040, 0x217Fui64);
+  result = qword_1400067B8;
+  qword_1400067A8 = qword_1400067B8;
+  return result;
+}
+</pre>
+<pre class="lang:asm decode:true">.text:0000000140001060                 mov     rax, cs:qword_1400067B8
+.text:0000000140001067                 mov     cs:qword_1400067B0, rax
+.text:000000014000106E                 retn
+</pre>
+<p>Nếu ta tìm key cho hàm sub_140004040, thì kết quả sẽ được chuỗi <code>f4k3f4k3</code>, hoàn toàn không phải chuỗi cần tìm. Tuy nhiên, tôi đã tìm lại toàn bộ binary nhưng không tìm thấy một hàm nào phù hợp khác.</p>
+<p>Tôi nhận ra vấn đề: Có lẽ trình nén là upx đã bị sửa, phần code giải mã thật chắc chắn nằm trong đó. Tôi không có nhiều thời gian để xem lại cả quá trình unpack upx. Để đơn giản, tôi chạy chương trình, dùng x64dbg để attach vào chương trình đang chạy và đặt breakpoint on execute ngay tại địa chỉ qword_1400067B0. Khi chương trình dừng tại đó, tôi dump toàn bộ phần code kiểm tra ra file (<a href="{{ site.baseurl }}/uploads/2017/07/online_mem.zip">online_mem.bin</a>).</p>
+<p>Khi có đoạn code kiểm tra đúng rồi, chúng ta có một vài lựa chọn:</p>
+<ul>
+<li>Patch lại vào file đã unpack, tại địa chỉ 0x140004040, rồi dùng IDA phân tích thuật toán, ... --&gt; cách này quá dài, tôi thì lười</li>
+<li>Patch lại vào file đã unpack, tại địa chỉ 0x140004040, rồi dùng angr framework để tìm 8 kí tự phù hợp --&gt; Cách này chắc là dùng được.</li>
+<li>Dựng một đoạn code chạy theo chiều ngược lại từ online_mem.bin, giá trị đầu ra của đoạn code này chính là 8 kí tự cần tìm  --&gt; Tôi dùng cách này</li>
+</ul>
+<p>Phân tích thấy cả đoạn code chỉ dùng 2 thanh ghi rax và rbx để tính toán. Các lệnh tính toán chỉ bao gồm các lệnh <code>add</code>, <code>sub</code>, <code>xor</code>, <code>rol</code>, <code>ror</code>. Ngoài ra, chỉ có lệnh <code>jmp</code> trong toàn bộ đoạn code.</p>
+<p>Phương pháp làm của tôi như sau:</p>
+<ul>
+<li>disassembly toàn bộ đoạn code:
+<ul>
+<li>nếu gặp <code>jmp</code> --&gt; lấy rip mới và bỏ qua lệnh này</li>
+<li>nếu gặp <code>rol</code>--&gt; chuyển thành <code>ror</code></li>
+<li>nếu gặp <code>ror</code>--&gt; chuyển thành <code>rol</code></li>
+<li>nếu gặp <code>mov</code> --&gt; kiểm tra lệnh tiếp theo và đổi <code>add</code> thành <code>sub</code>, <code>sub</code> thành <code>add</code></li>
+</ul>
+</li>
+<li>bỏ qua lệnh đầu tiên do nó không có tác dụng trong quá trình đảo ngược</li>
+<li>gặp lệnh cuối cùng (<code>mov rax, value; sub rax, rbx; ret</code>), đây là lệnh kiểm tra nên sẽ chuyển thành <code>mov rbx, value</code></li>
+<li>đảo ngược thứ tự toàn bộ các lệnh, tạo nó thành một đoạn code mới</li>
+<li>dùng emulator để thực thi toàn bộ đoạn code mới, giá trị đầu ra của rbx sẽ mô tả chính xác giá trị đúng của đầu vào</li>
+</ul>
+<p>Tôi là một big fan của Capstone/Keystone/Unicorn, trong lời giải này, tôi có cơ hội được sử dụng cả 3 framework cùng nhau :)</p>
+<ul>
+<li>Capstone is a multi-architecture disassembly framework : http://www.capstone-engine.org/</li>
+<li>Keystone is a multi-architecture assembler framework : http://www.keystone-engine.org/</li>
+<li>Unicorn Engine is a multi-architecture CPU emulator framework: http://www.unicorn-engine.org/</li>
+</ul>
+<p>Key: <strong>uNp4ck3r</strong></p>
+<h2>who_are_you.py</h2>
+<pre class="lang:python decode:true">from capstone import *
+from capstone.x86 import *
+from keystone import *
+from unicorn import *
+from unicorn.x86_const import *
+import struct
+
+
+def assembler(address, assembly):
+    ks = Ks(KS_ARCH_X86, KS_MODE_64)
+    encoding, _ = ks.asm(assembly, address)
+    patch_data = ''.join(chr(e) for e in encoding)
+    return patch_data
+
+
+def reverse_code(input):
+    output_code = []
+    md = Cs(CS_ARCH_X86, CS_MODE_64)
+    md.detail = True
+
+    base_addr = 0
+    rip = 0
+    while True:
+        try:
+            code = input[rip : rip + 32] # 2 instructions
+            insns = md.disasm(code, rip, 2)# try to disasm 2 instructions
+            insn1 = insns.next()
+            if insn1.mnemonic != 'jmp':
+                insn2 = insns.next()
+            insns.close()
+        except StopIteration:
+            break
+        except CsError as ex:
+            print("ERROR: %s" % ex)
+            break
+        if rip == 0:
+            rip += insn1.size  # skip the first instruction
+            continue
+
+        if rip == 0x2171: # some last instructions
+            output_code.append(assembler(rip, 'mov rbx, %d' % insn1.operands[1].imm))
+            break
+
+        elif insn1.mnemonic == 'jmp' and insn1.operands[0].type == X86_OP_IMM and (insn1.size == 5 or insn1.size == 2):
+            rip = insn1.operands[0].imm
+            continue
+        elif 'mov' in insn1.mnemonic and insn1.operands[1].type == X86_OP_IMM:
+            if insn2.mnemonic == 'add':
+                output_code.append(str(code[0:insn1.size]) + assembler(rip, 'sub ' + insn2.op_str))
+                rip += insn1.size + insn2.size
+                continue
+            if insn2.mnemonic == 'sub':
+                output_code.append(str(code[0:insn1.size]) + assembler(rip, 'add ' + insn2.op_str))
+                rip += insn1.size + insn2.size
+                continue
+            if insn2.mnemonic == 'xor':
+                output_code.append(str(code[0:insn1.size + insn2.size]))
+                rip += insn1.size + insn2.size
+                continue
+
+            output_code.append(str(code[0:insn1.size]))
+            rip += insn1.size
+            continue
+
+        if insn1.mnemonic == 'rol':
+            output_code.append(str(assembler(rip, 'ror ' + insn1.op_str)))
+            rip += insn1.size
+        elif insn1.mnemonic == 'ror':
+            output_code.append(str(assembler(rip, 'rol ' + insn1.op_str)))
+            rip += insn1.size
+        else:
+            raise Exception('should not be here:', hex(rip))
+
+
+    return output_code[::-1]
+
+
+def main():
+    try:
+        code = open("online_mem.bin", 'rb').read()
+        out = reverse_code(code)
+        code = ''.join(out)
+    except Exception as e:
+        print e
+        return
+
+    # emumator
+    mu = Uc(UC_ARCH_X86, UC_MODE_64)
+    sc_addr = 0x1c0000
+    # map 8KB memory for this emulation
+    mu.mem_map(sc_addr, 8 * 1024)
+    # write machine code to be emulated to memory
+    mu.mem_write(sc_addr, code)
+    # emulate machine code in infinite time
+    mu.emu_start(sc_addr, sc_addr + len(code))
+    rbx = mu.reg_read(UC_X86_REG_RBX)
+    print 'Key:', struct.pack('&lt;Q', rbx)
+
+
+if __name__ == '__main__':
+    main()
+</pre>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

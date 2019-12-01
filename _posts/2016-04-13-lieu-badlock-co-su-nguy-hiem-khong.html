@@ -1,0 +1,73 @@
+---
+layout: post
+title: Badlock có thật sự nguy hiểm không?
+date: 2016-04-13 14:09:51.000000000 +07:00
+type: post
+published: true
+status: publish
+categories:
+- News
+tags:
+- Badlock
+- CVE-2016-0128
+- MS16-047
+- Samba
+- Vulnerability
+
+excerpt: Các chuyên gia nghiên cứu bảo mật vừa mới phát hiện một lỗ hổng nghiêm trọng
+  ảnh hưởng đến hầu hết các phiên bản Windows và Samba. Lỗ hổng được đặt tên là Badlock
+  và được vá vào 12/04/2016 theo thông báo của nhóm phát triển Samba. Nhưng thật sự
+  lỗ hổng này nghiêm trọng đến mức nào và có ảnh hưởng ra sao?
+---
+<h2>Badlock là gì?</h2>
+<p><strong>Badlock</strong> là một lỗ hổng bảo mật quan trọng (<em>crucial security bug</em>, chứ không phải là critical bug! Hãy đọc lại cho cẩn thận!! ) vừa được công bố, trong hệ thống của Microsoft Windows và các máy chủ Samba.</p>
+<p>Các phiên bản Samba bị ảnh hưởng bởi Badlock:</p>
+<ul>
+<li>3.6.x,</li>
+<li>4.0.x,</li>
+<li>4.1.x,</li>
+<li>4.2.0-4.2.9,</li>
+<li>4.3.0-4.3.6,</li>
+<li>4.4.0</li>
+</ul>
+<p>Mục đich của hacker khi thực hiện tấn công vào các hệ thống bị Badlock:</p>
+<ul>
+<li>Tấn công từ chối dịch vụ - Denial-of-Service (DoS): Attacker gửi các gói tin khai thác lỗi, làm server không thể tiếp tục hoạt động ( có thể crash, có thể treo,...). Bên <a href="https://www.samba.org/samba/security/CVE-2015-5370.html">samba.org </a>có xác nhận lại, tuy nhiên không ảnh hưởng tới các sản phẩm của Microsoft.</li>
+<li>Tấn công giả mạo Man-in-the-middle (MITM): Security Account Manager (SAM) và Local Security Authority (Domain Policy) (LSAD) thiết lập một kênh RPC xác thực người dùng. Lỗi nằm trong giao thức xác thực của Samba protocol, khiến cho hacker có thể downgrade authentication level trong quá trình xác thực giữa 2 thành phần trên.</li>
+</ul>
+<p>Mô tả kĩ hơn có thể tìm thấy ở <a href="http://badlock.org/">http://badlock.org</a>.</p>
+<h2>Badlock có thật sự nghiêm trọng như mô tả ?</h2>
+<h3>Badlock là một lỗ hổng trong giao thức SMB?</h3>
+<p>Không. Lỗ hổng này chỉ ảnh hưởng tới các sản phẩm sử dụng SAM hoặc LSAD. Bản thân giao thức SMB chưa phát hiện ra lỗ hổng.</p>
+<h3>Có những phiên bản hệ điều hành nào ảnh hưởng?</h3>
+<p>Tất cả máy tính sử dụng hệ điều hảnh Windows ( bao gồm cả Windows 2003, 2k, XP), samba server.</p>
+<h3>Liệu lỗ hổng này đã bị khai thác hay chưa?</h3>
+<p>Microsoft chưa nhận được một báo cáo nào về về lỗ hổng này bị khai thác trong thực tế. Lỗ hổng cũng được thông báo trực tiếp cho Microsoft. Tuy nhiên, theo badlock.org, lỗ hổng này sẽ bị khai thác sớm.</p>
+<h3>Lỗ hổng này có dễ khai thác không?</h3>
+<ul>
+<li>Thử so sánh độ nguy hiểm của Badlock với một lỗ hổng nghiêm trọng: <a href="http://heartbleed.com/">Heartbleed</a>. Heartbleed là một lỗ hổng cho phép kẻ tấn công có thể đọc được nhiều thông tin quan trọng nằm trên server. Các thông tin này có thể đọc một cách đơn giản, dễ dàng, không cần thực hiện MITM, server hoàn toàn không nhận thấy các request khai thác lỗi này nên sẽ không có log trên server. Trái lại, Badlock cần một cuộc tấn công MITM để làm bàn đạp tấn công.</li>
+<li>Thử so sánh độ nguy hiểm của nó với một lỗ hổng khác của Microsoft là MS08-067. MS08-067 có thể lây lan hàng triệu máy tính một cách tự động ( sâu conficker), nhưng Badlock thì không thể. Vấn đề cốt lõi nằm ở chỗ: Hacker cần thực hiện một tấn công MITM trước. Có nghĩa là, hacker phải thực hiện các cuộc tấn công thăm dò nhất định đối với mạng nội bộ của mục tiêu. Điều này khác hẳn với việc dùng một công cụ có sẵn từ internet và chạy. Sau khi tấn công thành công, kẻ tấn công chỉ có quyền tiếp cận với SAM database, với quyền của một người dùng trong mạng. Tuy nhiên, để đọc SAM database thì lại cần thêm các bước khác, ví dụ như tấn công bruteforce.</li>
+</ul>
+<p>Vì cần nhiều yếu tố khác, làm điều kiện cần, để Badlock có thể khai thác được, nên theo đánh giá chủ quan của tôi, lỗi này không quá ngiêm trọng như badlock.org đã công bố. Tất nhiên, việc vá lỗ hổng này là rất cần thiết, để bảo đảm an toàn cho toàn bộ hệ thống.</p>
+<h2>Badlock.org và phong cách Hollywood</h2>
+<p>Không phủ nhận rằng, Badlock gây ảnh hưởng tới các hệ thống sử dụng Samba; tuy nhiên, cách mà badlock.org thông báo và gây hoang mang khiến cho tôi nhớ tới các bộ phim "bom tấn" của Hollyword. Cứ mỗi khi có phim mới sắp ra, Hollyword sẽ quảng cáo, đưa trailer trước đó, công bố ngày công chiếu phim và khiến khán giả đoán già đoán non thông qua các đoạn trailer của mình. Đây là một chiến dịch PR hiệu quả với một bộ phim nhưng là một chiến dịch tồi với một lỗi không mấy nghiêm trọng.</p>
+<p>Cái tên Badlock cũng không khiến cho người đọc liên tưởng tới một phần nào của kĩ thuật tấn công hoặc bản chất của lỗi. Nó đơn thuần chỉ là một cái tên.</p>
+<blockquote>
+<h4><b>What does "Badlock" stand for?</b></h4>
+<p>"Badlock" was meant to be a rather generic name and does not point to any specifics.</p></blockquote>
+<p>Chính vì những cường điệu quá mức này của badlock.org (hoặc gọi chính xác là SerNet ), rất nhiều người đã gọi nó là <a href="https://twitter.com/hashtag/sadlock?src=hash">#sadlock</a> . Hashtag này được sử dụng rất nhiều khi viết về badlock.</p>
+<p>https://twitter.com/thechrisharrod/status/719976053977006081</p>
+<p>https://twitter.com/ZephrFish/status/719936956386422784</p>
+<p>Có ý kiến còn cho rằng, lỗ hổng này không cần thiết phải có hẳn một website cho nó.</p>
+<p>https://twitter.com/bhohenadel/status/719947270943326208</p>
+<p>https://twitter.com/jschauma/status/719944361354596352</p>
+<p>Một điều thú vị là: <strong>Stefan Metzmacher</strong> ( một nhân viên của SerNet, tham ra phát triển Samba từ 2002 ) chính là người phát hiện ra lỗ hổng.</p>
+<p>https://twitter.com/gszathmari/status/712423757600710657</p>
+<h2>Cập nhật phần mềm thế nào?</h2>
+<p>Tất cả các hãng đều có bản vá cho lỗi, chỉ cần bật tiến trình update và chờ.</p>
+<p>&nbsp;</p>
+<p><strong>Bài viết có sử dụng nguồn tư liệu từ</strong>:</p>
+<p><a href="http://www.wired.com/2016/04/badlock-bug-hype-hurt/">That ‘Badlock’ Bug Is More Hype Than Hurt</a></p>
+<p><a href="https://blog.trendmicro.com/trendlabs-security-intelligence/how-bad-is-badlock/">How Bad is Badlock (CVE-2016-0128/CVE-2016-2118)?</a></p>
+<p><a href="https://technet.microsoft.com/library/security/MS16-047">Microsoft Security Bulletin MS16-047</a></p>
+<p>&nbsp;</p>
