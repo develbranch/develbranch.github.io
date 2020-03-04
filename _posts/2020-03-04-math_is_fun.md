@@ -101,7 +101,7 @@ Tiếp tục:
 
 Nói cách khác, với N là số đoạn code, p là xác suất được lựa chọn, thì chúng ta có x là số đoạn code cần chọn ngẫu nhiên để testcase mới trùng với testcase cũ. 
 
-Nếu chúng ta giả định p = 0.5 = 50%, thay tế vào công thức tính xác suất ban đầu, ta có được công thức cuối cùng:
+Nếu chúng ta giả định p = 0.5 = 50%, thay thế vào công thức tính xác suất ban đầu, ta có được công thức cuối cùng:
 
 ![Taylor]({{ site.baseurl }}/assets/img/2020/03/2020-03-04-math_is_fun_xap_xi2.png)
 
