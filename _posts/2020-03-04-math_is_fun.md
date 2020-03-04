@@ -105,13 +105,14 @@ Nếu chúng ta giả định p = 0.5 = 50%, thay thế vào công thức tính 
 
 ![Taylor]({{ site.baseurl }}/assets/img/2020/03/2020-03-04-math_is_fun_xap_xi2.png)
 
-hay nói cách khác, x xấp xỉ bằng **1.17741*sqrt(N)**, có thể coi là sqrt(N). 
+hay nói cách khác, x xấp xỉ bằng **1.17741*sqrt(N)**, có thể coi là **sqrt(N)**. 
 
-Như vậy, nếu chúng ta cắt đi `sqrt(N)` đoạn mã trong N đoạn mã, thì xác suất xảy ra testcase trùng sẽ lớn hơn 50%. Độ phức tạp thuật toán là O(n). Do số lượng đoạn được cắt đi lớn khi N lớn, tốc độ hội tụ của thuật toán này được cải tiến đáng kể so với việc tối ưu tuần tự. Một kết luận rất ngắn và đơn giản phải không?
+Như vậy, nếu chúng ta cắt đi `sqrt(N)` đoạn mã trong N đoạn mã, thì xác suất xảy ra testcase trùng sẽ lớn hơn 50%. Độ phức tạp thuật toán là O(n). Do số lượng đoạn được cắt đi lớn khi N lớn, tốc độ hội tụ của thuật toán này được cải thiện đáng kể so với việc tối ưu tuần tự. Một kết luận rất ngắn và đơn giản phải không?
 
 Nếu chúng ta chọn N là 3000 đoạn mã. 
 
-Trục Y là số đoạn mã được loại bỏ
+Trục Y là số đoạn mã được loại bỏ.
+
 Trục X là xác xuất xảy ra trùng nhau
 
 ![3000]({{ site.baseurl }}/assets/img/2020/03/2020-03-04-math_is_fun_3000.png)
