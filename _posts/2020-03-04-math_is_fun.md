@@ -116,4 +116,4 @@ Nếu chúng ta chọn N là 3000 đoạn mã:
 
 ## Kết luận
 
-Qua bài viết vừa rồi, tôi hy vọng rằng các bạn có thể có cái nhìn sâu sắc hơn với môn toán cũng như phương pháp ứng dụng các bài toán "ngày xửa ngày xưa" vào các vấn đề trong công việc hiện tại. Nét đẹp của toán học sẽ chỉ phát huy khi chúng được đặt vào đúng tình huống cụ thể. Đừng để các bài toàn của các bạn chỉ nằm trên giấy./.
+Qua bài viết vừa rồi, tôi hy vọng rằng các bạn có thể có cái nhìn sâu sắc hơn với môn toán cũng như phương pháp ứng dụng các bài toán "ngày xửa ngày xưa" vào các vấn đề trong công việc hiện tại. Nét đẹp của toán học sẽ chỉ phát huy khi chúng được đặt vào đúng tình huống cụ thể. Đừng để các bài toán của các bạn chỉ nằm trên giấy./.
