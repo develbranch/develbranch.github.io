@@ -113,7 +113,7 @@ Nếu chúng ta chọn N là 3000 đoạn mã.
 
 Trục Y là số đoạn mã được loại bỏ.
 
-Trục X là xác xuất xảy ra trùng nhau
+Trục X là xác suất xảy ra trùng nhau
 
 ![3000]({{ site.baseurl }}/assets/img/2020/03/2020-03-04-math_is_fun_3000.png)
 
