@@ -67,24 +67,24 @@ Ta có phương pháp tối ưu testcase đơn giản, thông qua 3 bước sau:
 
 ## Cần phải xóa bao nhiêu đoạn trong testcase?
  - Số đoạn xóa đi phải đủ nhỏ để xác suất có testcase trùng là cao nhất. Hiển nhiên rằng nếu các bạn xóa càng ít đoạn, thì xác suất xóa phải đoạn không liên quan càng cao, testcase càng có xác suất lớn để trùng. 
- - Số đoạn xóa đi phải đủ lớn để giảm thời gian cắt tỉa. Hiển nhiên rằng nếu càng xóa nhiều đoạn, testcase càng nhỏ.
+ - Số đoạn xóa đi phải đủ lớn để giảm thời gian tối ưu. Hiển nhiên rằng nếu càng xóa nhiều đoạn, testcase càng nhỏ.
  
 **Con số bao nhiêu là hợp lý????**
 
-Giả sử cắt bỏ x dòng trong testcase ban đầu (có N dòng):
+Giả sử cắt bỏ x đoạn mã trong testcase ban đầu (có N đoạn mã):
 
-Xác suất để cắt bỏ 1 dòng nhưng vẫn được testcase trùng ≈ 100%
+Xác suất để cắt bỏ 1 đoạn mã nhưng vẫn được testcase trùng ≈ 100%
 
-Xác suất cắt bỏ dòng thứ 2 nhưng vẫn được testcase trùng (1 – 1/N)
+Xác suất cắt bỏ đoạn mã thứ 2 nhưng vẫn được testcase trùng (1 – 1/N)
 
-Xác suất cắt bỏ dòng thứ 3 nhưng vẫn được testcase trùng (1 – 2/N)
+Xác suất cắt bỏ đoạn mã thứ 3 nhưng vẫn được testcase trùng (1 – 2/N)
 
 ...
 
-Xác suất cắt bỏ dòng thứ x nhưng vẫn được testcase trùng (1 – (x-1)/N)
+Xác suất cắt bỏ đoạn mã thứ x nhưng vẫn được testcase trùng (1 – (x-1)/N)
 
 
-_Xác suất để cắt bỏ x dòng nhưng vẫn được testcase trùng_
+_Xác suất để cắt bỏ x đoạn mã nhưng vẫn được testcase trùng_
 
 ![equation]({{ site.baseurl }}/assets/img/2020/03/2020-03-04-math_is_fun_equation.png)
  
