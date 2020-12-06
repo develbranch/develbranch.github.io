@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Tết Tân Sửu 2021</title>
+
+    <script src="countdown/countDown.min.js"></script>
+    <link href="countdown/countdown.css" media="all" rel="stylesheet" />
+    <style>
+        body {
+            color: white;
+            background-image: url(./background-tet-dep-nhat-lam-hinh-nen-dep-14.jpg);
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+        <div style="text-align:center; color: black; text-shadow: 2px 2px 8px white;">
+            <h1>
+                <font size="7"> <b>CÒN BAO NHIÊU NGÀY NỮA TẾT?</b></font>
+            </h1>
+            <h3> ĐẾM NGƯỢC ĐẾN TẾT NGUYÊN ĐÁN TÂN SỬU 2021 </h3>
+        </div>
+        <div class="container"></div>
+    </div>
+
+    <script>
+        let cd = new Countdown({
+            cont: document.querySelector('.container'),
+            countdown: true, // true for classic countdown, false for countup
+            date: {
+                day: 12,
+                month: 2,
+                year: 2021,
+                hour: 0,
+                minute: 0,
+                second: 0,
+            },
+            /*
+            date: "Wednesday March 25 2019",
+            // or
+            date: 1553468400000,
+            // or
+            date: new Date(1553468400000),
+            // or
+            date: null, == for now
+            // or
+            missing date key, == for now too
+             */
+            outputTranslation: {
+                year: 'Năm',
+                week: 'Tuần',
+                day: 'Ngày',
+                hour: 'Giờ',
+                minute: 'Phút',
+                second: 'Giây'
+            },
+            endCallback: function () {
+                // do something awesome
+            },
+            outputFormat: 'day|hour|minute|second',
+        });
+
+        cd.start();
+    </script>
+
+</body>
+
+</html>
