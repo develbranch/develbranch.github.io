@@ -19,3 +19,4 @@ tags: []
 <h2 class="title">Info</h2>
 <p>Email: contact[at]develbranch.com</p>
 <p>FB: fb.com/develbranch</p>
+<a rel="me" href="https://infosec.exchange/@quangnh89">Mastodon</a>
