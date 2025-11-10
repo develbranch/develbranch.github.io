@@ -24,9 +24,9 @@ Tôi gần đây có tham dự một số lớp học buổi tối sau giờ là
  - 20% ở viết prompt hợp lý.
 
 ## Data engineering
- - Tải toàn bộ video về: Task này hoàn toàn không khó gì, kể cả với các video "private", cần một chút mẹo với trình duyệt là đủ.
- - Tách audio từ video: task này cần một lệnh đơn giản với ffmpeg
- - Chuyển đổi audio sang text: OpenAI đã release một model khá ổn cho việc này, có tên là [whisper](https://github.com/openai/whisper): Robust Speech Recognition via Large-Scale Weak Supervision. Điểm tuyệt vời của model này là hoàn toàn có thể chạy với các GPU phổ thông, cần VRAM khá ít (model large chỉ cần 10 GB VRAM). Vì video của tôi là bài giảng của một giảng viên nói tiếng Việt nên tôi chọn model này. Model hoạt động trên máy tính cá nhân của tôi (CPU Ryzen 3900X, 64GB ram, GPU 4060Ti 16GB VRAM) với tốc độ khá tốt: transcript 1 audio 3 giờ tốn khoảng 30 phút. Với ngôn ngữ tiếng Việt, tôi chọn model large (https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages) 
+ - _Tải toàn bộ video về:_ Task này hoàn toàn không khó gì, kể cả với các video "private", cần một chút mẹo với trình duyệt là đủ.
+ - _Tách audio từ video:_ task này cần một lệnh đơn giản với công cụ miễn phí, mã nguồn mở `ffmpeg`
+ - _Chuyển đổi audio sang text:_ OpenAI đã release một model khá ổn cho việc này, có tên là [whisper](https://github.com/openai/whisper): Robust Speech Recognition via Large-Scale Weak Supervision. Điểm tuyệt vời của model này là miễn phí, hoàn toàn có thể chạy với các GPU phổ thông, cần VRAM khá ít (model large chỉ cần 10 GB VRAM). Vì video của tôi là bài giảng của một giảng viên nói tiếng Việt nên tôi chọn model này. Model hoạt động trên máy tính cá nhân của tôi (CPU Ryzen 3900X, 64GB RAM, GPU 4060Ti 16GB VRAM) với tốc độ khá tốt: transcript audio dài 3 giờ tốn khoảng 30 phút. Với ngôn ngữ tiếng Việt, tôi chọn model large (https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages).
  
 |  Size  | Parameters | English-only model | Multilingual model | Required VRAM | Relative speed |
 |:------:|:----------:|:------------------:|:------------------:|:-------------:|:--------------:|
@@ -47,9 +47,9 @@ Sau bước này, chúng ta sẽ có một file text chứa toàn bộ transcrip
 
 Đây là 20% còn lại của task. Hầu hết chúng ta đang kỳ vọng quá nhiều vào AI, mong muốn nó phải biết hết và đưa cho mình một câu trả lời toàn diện, có chiều sâu. Đáp lại kỳ vọng này lại là một kết quả chung chung, đọc qua thì có vẻ "hợp lý", nhưng thực thế lại thiếu chiều sâu và không có nhiều tác dụng.
 
-Đối với tôi, model AI nào không quan trọng, vì khi dùng prompt đúng thì kết quả đầu ra tương đương nhau. Tuy nhiên, tôi khá thích các model mới như Claude sonnet 4.5 (Anthropic), ChatGPT-5 (OpenAI). Gemini 2.5 Pro (Google) cho kết quả cũng không tệ. Nếu đổi sang dùng DeepSeek thì chất lượng hơi giảm so với đánh giá của tôi, nhưng tôi cho rằng chấp nhận được. Một điểm quan tâm của tôi là giá thành. Các model AI cho kết quả tương đường thì chúng ta cứ chọn loại rẻ thôi.
+Đối với tôi, model AI nào không quan trọng, vì khi dùng prompt đúng thì kết quả đầu ra tương đương nhau. Tuy nhiên, tôi khá thích các model mới như Claude sonnet 4.5 (Anthropic), ChatGPT-5 (OpenAI). Gemini 2.5 Pro (Google) cho kết quả cũng không tệ. Nếu đổi sang dùng DeepSeek thì chất lượng hơi giảm so với đánh giá của tôi, nhưng tôi cho rằng chấp nhận được. Một điểm quan tâm của tôi là giá thành. Các model AI cho kết quả tương đương thì chúng ta cứ chọn loại rẻ thôi.
 
-Vấn đề chính nằm ở chỗ "chúng ta đặt câu hỏi cho AI thế nào?". Mặc dù AI không thể thay thế con người, nhưng chỉ bằng cách tối ưu prompt cho AI, chúng ta sẽ giúp AI trả lời tốt hơn.
+Vấn đề chính nằm ở chỗ _"chúng ta đặt câu hỏi cho AI thế nào?"_ . Mặc dù AI không thể thay thế con người, nhưng chỉ bằng cách tối ưu prompt cho AI, chúng ta sẽ giúp AI trả lời tốt hơn.
 
 Chúng ta có thể sử dụng công thức sau cho việc viết prompt cho AI, tạm gọi là công thức C.O.R.G.I.C.E:
 
