@@ -11,7 +11,7 @@ tags:
 - Level_1
 - AI
 - prompt
-excerpt: '"Kỹ năng viết prompt". Tôi muốn bắt đầu viết lại blog này bằng một chủ đề rất "hot" hiện nay, đó là sử dụng AI (Artificial Intelligence). Thay vì sử dụng AI theo cách đơn sơ, chỉ bằng cách viết prompt, chúng ta có thể mở khoá một số tính năng cực kỳ tuyệt vời của AI.'
+excerpt: 'Tôi muốn bắt đầu viết lại blog này bằng một chủ đề rất "hot" hiện nay, đó là sử dụng AI (Artificial Intelligence). Thay vì sử dụng AI theo cách đơn sơ, chỉ bằng cách viết prompt có cấu trúc, chúng ta có thể mở khoá một số tính năng cực kỳ tuyệt vời của AI.'
 ---
 
 ## Giới thiệu
