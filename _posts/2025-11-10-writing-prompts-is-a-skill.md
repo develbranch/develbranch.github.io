@@ -56,7 +56,7 @@ Chúng ta có thể sử dụng công thức sau cho việc viết prompt cho AI
 - **Context (Bối cảnh)**: Nói rõ đầu vào, hoàn cảnh, ngôn ngữ, cấu trúc dữ liệu sẵn có.
 - **Output format**: Khuôn mẫu đầu ra
 - **Role (Vai trò)**: Nhập vai để xác định phong cách. Đây là một phương pháp cho phép AI tương tác và tạo câu trả lời đúng với yêu cầu định ra.
-- **Goal (Mục tiêu)**: Kết quả cần đạt, giá trị cốt lõi của câu trả lời.
+- **Goal (Mục tiêu)**: Kết quả cần đạt, giá trị cốt lõi của câu trả lời.
 - **Instruction/Requirements (Hướng dẫn)**: Đây là phần hướng dẫn chi tiết cách làm cụ thể cách làm cụ thể để AI biết cần làm từng bước nào.
 - **Constraints (Ràng buộc)**: Ràng buộc cứng cần tuân thủ. Đây là các "luật cấm" và ưu tiên định dạng. Có thể thêm các luật mô tả để AI chống "bịa" trong câu trả lời ("Do NOT invent", "No hallucinations", "No Yapping",...)
 - **Examples (Ví dụ)**: minh họa để mô hình hiểu định dạng của dữ liệu.
@@ -152,15 +152,25 @@ Create a complete, accurate, and time-organized summary that helps learners quic
 ***Instructions (Hướng dẫn cụ thể)***
 
 1) Use only transcript content. Do NOT invent slides, examples, or data not present in the text.
+
 2) If unclear, write [unclear] instead of guessing.
+
 3) Translate any quoted phrases into natural Vietnamese.
+
 4) Remove filler talk (greetings, ums, repetition). Keep logistics only if they include instructions, deadlines, or assignments.
+
 5) Merge short lines that share the same topic into a single summarized segment.
+
 6) Normalize all times to the format hh:mm:ss.
+
 7) Anchor each topic section with timestamps ([hh:mm–hh:mm]).
+
 8) Use bullet points instead of long paragraphs.
+
 9) Avoid repeating ideas or writing generic comments.
+
 10) Respect the Markdown format strictly.
+
 
 ***Constraints (Ràng buộc)***
 - Faithfulness: No hallucinations or assumptions. Everything must come directly from the transcript.
