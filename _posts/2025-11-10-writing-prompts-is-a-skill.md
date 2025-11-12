@@ -11,7 +11,7 @@ tags:
 - Level_1
 - AI
 - prompt
-excerpt: 'Tôi muốn bắt đầu viết lại blog này bằng một chủ đề rất "hot" hiện nay, đó là sử dụng AI (Artificial Intelligence). Thay vì sử dụng AI theo cách đơn sơ, chỉ bằng cách viết prompt có cấu trúc, chúng ta có thể mở khoá một số tính năng cực kỳ tuyệt vời của AI.'
+excerpt: 'Tôi muốn bắt đầu viết lại blog này bằng một chủ đề rất "hot" hiện nay, đó là sử dụng AI (Artificial Intelligence). Thay vì sử dụng AI theo cách đơn sơ, chỉ bằng cách viết prompt có cấu trúc, chúng ta có thể mở khoá một số tính năng cực kỳ tuyệt vời của AI. Đó gọi là Prompt Engineering.'
 ---
 
 ## Giới thiệu
@@ -20,8 +20,8 @@ Tôi gần đây có tham dự một số lớp học buổi tối sau giờ là
 
 ## Cần chuẩn bị những gì?
 Để làm một "task" liên quan tới AI thì cần chuẩn bị 2 thứ:
- - 80% ở data engineering.
- - 20% ở viết prompt hợp lý.
+ - 80% ở Data Engineering (chuẩn bị dữ liệu đầu vào).
+ - 20% ở Prompt Engineering (viết prompt hợp lý).
 
 ## Data engineering
  - _Tải toàn bộ video về:_ Task này hoàn toàn không khó gì, kể cả với các video "private", cần một chút mẹo với trình duyệt là đủ.
@@ -43,7 +43,7 @@ Với các transcript tiếng Anh, hoàn toàn có thể chọn model có kích 
 Sau bước này, chúng ta sẽ có một file text chứa toàn bộ transcript của video.
 
 
-## Viết prompt
+## Prompt engineering
 
 Đây là 20% còn lại của task. Hầu hết chúng ta đang kỳ vọng quá nhiều vào AI, mong muốn nó phải biết hết và đưa cho mình một câu trả lời toàn diện, có chiều sâu. Đáp lại kỳ vọng này lại là một kết quả chung chung, đọc qua thì có vẻ "hợp lý", nhưng thực thế lại thiếu chiều sâu và không có nhiều tác dụng.
 
